@@ -22,6 +22,6 @@ class PersistenceTest(unittest.TestCase):
             subprocess.run(command, env=env, check=True)
             with closing(sqlite3.connect(path)) as db:
                 self.assertEqual(db.execute("SELECT value FROM probe").fetchall(), [("first run",)])
-                self.assertEqual(db.execute("SELECT version FROM schema_migrations").fetchall(), [(1,)])
-                self.assertEqual(db.execute("PRAGMA user_version").fetchone(), (1,))
+                self.assertEqual(db.execute("SELECT version FROM schema_migrations").fetchall(), [(1,), (2,)])
+                self.assertEqual(db.execute("PRAGMA user_version").fetchone(), (2,))
                 self.assertEqual(db.execute("PRAGMA journal_mode").fetchone(), ("wal",))
