@@ -23,6 +23,18 @@ docker compose up --force-recreate
 docker compose run --rm beacon python3 -c "import sqlite3; from opportunity_beacon import database_path; print(sqlite3.connect(database_path()).execute('SELECT * FROM schema_migrations').fetchall())"
 ```
 
-With pytest installed, run `python3 -m pytest -q`. The persistence test uses a temporary database and starts the application twice. The application uses only the Python standard library.
+## Running the tests
+
+From the repository root, create a virtual environment and install the development dependencies. The `--group` option requires pip 25.1 or later.
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install "pip>=25.1"
+python -m pip install --group dev
+python -m pytest -q
+```
+
+The persistence test runs offline. It starts the application twice against the same temporary database and checks the saved row, schema version and WAL mode. The application uses only the Python standard library.
 
 MIT license.
