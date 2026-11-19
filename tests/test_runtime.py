@@ -322,3 +322,31 @@ def test_slow_request_backoff_cap_and_normal_interval_after_success(tmp_path, mo
     runtime.run_scheduler(tmp_path / "db", None, stop, interval=600, threshold=3, fetch=fetch)
     assert stop.delays == [1200, 2400, 4800, 9600, 19200, 21600, 21600, 600]
     assert all(b - a == 1200 + wait for a, b, wait in zip(started, started[1:], stop.delays))
+
+
+@pytest.mark.parametrize("failure", ["listing", "detail", "transport", None])
+def test_smoke_stage_and_registration_counts(monkeypatch, capsys, failure):
+    from opportunity_beacon import __main__ as cli
+
+    last_detail = runtime.ORIGIN + "/psg/selecao/detalhar/santarem/5/377342740"
+    def replay(url):
+        if failure == "listing" and url == runtime.LISTING_URL or failure == "detail" and url == last_detail:
+            return "<main></main>"
+        if failure == "transport" and url == last_detail:
+            raise RequestFailure("HTTP 500")
+        return html_for(url)
+
+    monkeypatch.setattr(cli, "collect", lambda **kw: runtime.collect(replay, **kw))
+    monkeypatch.setattr(sys, "argv", ["opportunity_beacon", "smoke"])
+    if failure:
+        with pytest.raises(SystemExit) as exc:
+            cli.main()
+        assert exc.value.code == 1
+        expected = "listagem · " + runtime.LISTING_URL if failure == "listing" else "detalhe · " + last_detail
+        assert expected in capsys.readouterr().err
+    else:
+        cli.main()
+        output = capsys.readouterr().out
+        assert "Santarém: 2 seleção(ões)" in output
+        assert "Seleção 152/2026: abertas: 0, encerradas: 0, vagas preenchidas: 0, desconhecida: 1" in output
+        assert "Total: 4 curso(s) · abertas: 1, encerradas: 1, vagas preenchidas: 1, desconhecida: 1" in output
