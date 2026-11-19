@@ -1,5 +1,7 @@
 # OpportunityBeacon
 
+Early development: monitoring is not implemented yet.
+
 I started OpportunityBeacon to follow opportunities without checking the same websites manually. The idea, requirements and project direction are mine. I use OpenAI Codex to help implement the software.
 
 The foundation initializes a local SQLite database in WAL mode, applies pending migrations and exits. Run it from the repository root with Python 3.11 or later:
