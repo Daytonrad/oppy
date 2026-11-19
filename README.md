@@ -25,6 +25,8 @@ docker compose run --rm beacon python3 -c "import sqlite3; from opportunity_beac
 
 ## Running the tests
 
+CI runs only the offline tests.
+
 From the repository root, create a virtual environment and install the development dependencies. The `--group` option requires pip 25.1 or later.
 
 ```sh
