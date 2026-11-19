@@ -109,9 +109,9 @@ def test_one_to_one_composite_matching_and_collisions():
         assert all(m.status == MatchStatus.UNRESOLVED for m in match_courses(old, new))
 
 
-def test_duplicate_alias_falls_back_to_distinct_natural_keys():
+def test_duplicate_alias_uses_period_to_distinguish_same_title_and_venue():
     course = replace(detail("152").courses[0], alias="repeated")
-    other = replace(course, course_start=date(2027, 1, 4))
+    other = replace(course, course_start=date(2027, 1, 4), course_end=date(2027, 1, 20))
     assert [m.previous_index for m in match_courses((course, other), (other, course))] == [1, 0]
 
 
@@ -125,3 +125,25 @@ def test_missing_registration_bound_preserves_known_start():
 def test_detail_cannot_be_assigned_to_another_selection():
     result = parse_detail(fixture("detail-152"), selection("126/2026"))
     assert result.status == Outcome.FAILED and result.value is None
+
+
+def test_course_period_correction_is_only_a_field_change():
+    markup = fixture("detail-152")
+    course, = detail("152", markup).courses
+    revised, = detail("152", markup.replace("16/12/2026", "18/12/2026")).courses
+    match, = match_courses((course,), (revised,))
+    assert match.status == MatchStatus.MATCHED and match.previous_index == 0
+    assert field_diff(course, revised) == {"course_end": ("2026-12-16", "2026-12-18")}
+
+
+def test_unique_natural_key_needs_no_period():
+    course = replace(detail("152").courses[0], course_start=None, course_end=None)
+    match, = match_courses((course,), (course,))
+    assert match.status == MatchStatus.MATCHED and match.previous_index == 0
+
+
+def test_identical_classes_are_unresolved():
+    course = detail("152").courses[0]
+    matches = match_courses((course, course), (course, course))
+    assert len(matches) == 2
+    assert all(m.status == MatchStatus.UNRESOLVED and m.previous_index is None for m in matches)
