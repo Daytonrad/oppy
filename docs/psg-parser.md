@@ -1,0 +1,9 @@
+# Offline PSG parsing
+
+Pass decoded listing HTML to `parse_listing`, then supply a returned selection and its detail HTML to `parse_detail(markup, selection)`. Both functions return a status and reason. Only OK carries records. A missing Santarém panel in a recognizable listing or an unconfirmed empty list is INCONCLUSIVE. Malformed structure, conflicting links and contradictory selection metadata are FAILED. Keep the last valid snapshot for either outcome.
+
+Registration timestamps without an offset use America/Santarem by assumption. Course periods are local calendar dates. The registration channel describes how to apply. An in-person control leaves registration status unknown. The fixtures' redacted venue marker represents an unknown venue. Selection documents are recorded once per detail.
+
+The natural course key combines source-scoped selection identity, normalized case-insensitive title and venue, and the course start and end dates. Match whole snapshots in two passes. Reserve unique one-to-one selection-scoped alias matches first, including renamed courses. For remaining rows, require a complete natural key unique on both sides. Conflicting known aliases prevent a natural-key match. Missing evidence or collisions return unresolved. A match points to an index in the previous snapshot; row order itself contributes no evidence. The caller can retain a previously seen alias across a matched observation where it is absent. No match outcome generates a removal or cancellation.
+
+Hashes and field comparisons use the same canonical snapshot: Unicode NFC, collapsed whitespace, ISO dates and timestamps, and deterministic collection order. A field diff returns previous and current canonical values for each changed top-level field. Compare matched courses individually for course-level changes.
