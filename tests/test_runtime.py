@@ -213,7 +213,7 @@ def test_simulated_telegram_outage_and_single_summary(tmp_path, caplog):
             assert rows(path, "SELECT status, attempts FROM outbox") == [
                 ("pending" if attempt == 1 else "sent", attempt)]
     assert len(received) == 2 and received[0] == received[1]
-    assert "Resumo inicial" in received[0]["text"] and "4 curso(s)" in received[0]["text"]
+    assert "Resumo inicial" in received[0]["text"] and "Cursos: 4" in received[0]["text"]
     assert "parse_mode" not in received[0]
     assert rows(path, "SELECT outcome FROM collections") == [("OK",), ("OK",)]
     assert fake not in caplog.text and fake not in str(rows(path, "SELECT last_error FROM outbox"))
