@@ -31,6 +31,7 @@ MIGRATIONS = (
             attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, last_failure_at TEXT,
             sent_at TEXT)""",
     ),
+    ("ALTER TABLE collections ADD COLUMN retry_not_before REAL",),
 )
 
 

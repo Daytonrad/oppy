@@ -3,9 +3,17 @@ services:
     build:
       context: .
       network: none
-    network_mode: none
+    command: ["python3", "-m", "opportunity_beacon", "run"]
+    restart: unless-stopped
+    stop_grace_period: 25s
     environment:
+      TZ: America/Santarem
       BEACON_DB_PATH: ${BEACON_DB_PATH:-data/beacon.sqlite3}
+      BEACON_INTERVAL_MINUTES: ${BEACON_INTERVAL_MINUTES:-30}
+      BEACON_FAILURE_ALERT_AFTER: ${BEACON_FAILURE_ALERT_AFTER:-3}
+      BEACON_TELEGRAM_TOKEN: ${BEACON_TELEGRAM_TOKEN:-}
+      BEACON_TELEGRAM_CHAT_ID: ${BEACON_TELEGRAM_CHAT_ID:-}
+      BEACON_BACKUP_PATH: ${BEACON_BACKUP_PATH:-}
     volumes:
       - beacon-data:/app/data
 

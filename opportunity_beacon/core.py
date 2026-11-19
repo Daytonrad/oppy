@@ -70,7 +70,8 @@ def align(rows, courses):
     return old, aligned
 
 
-def record_collection(path: Path, listing: ParseResult, details=(), *, observed_at=None):
+def record_collection(path: Path, listing: ParseResult, details=(), *, observed_at=None,
+                      failure_threshold=3, retry_not_before=None):
     """Consume a listing and one detail ParseResult per listed selection."""
     now = observed_at or datetime.now(timezone.utc)
     if now.utcoffset() is None:
@@ -97,9 +98,10 @@ def record_collection(path: Path, listing: ParseResult, details=(), *, observed_
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("BEGIN IMMEDIATE")
-        batch = db.execute("INSERT INTO collections(observed_at,outcome,reason) VALUES (?,?,?)",
-                           (stamp, outcome, reason)).lastrowid
+        batch = db.execute("INSERT INTO collections(observed_at,outcome,reason,retry_not_before) VALUES (?,?,?,?)",
+                           (stamp, outcome, reason, retry_not_before)).lastrowid
         if outcome != Outcome.OK:
+            _health(db, batch, outcome, reason, failure_threshold)
             return outcome
         baseline = not db.execute("SELECT 1 FROM selections LIMIT 1").fetchone()
         db.execute("SAVEPOINT snapshots")
@@ -110,13 +112,30 @@ def record_collection(path: Path, listing: ParseResult, details=(), *, observed_
             db.execute("ROLLBACK TO snapshots")
             db.execute("UPDATE collections SET outcome='INCONCLUSIVE', reason=? WHERE id=?",
                        (str(error), batch))
+            _health(db, batch, Outcome.INCONCLUSIVE, str(error), failure_threshold)
             return Outcome.INCONCLUSIVE
         if baseline:
             courses = [c for d in by_key.values() for c in d.courses]
             summary = {"selections": len(by_key), "courses": len(courses),
                        "open_courses": [c.title for c in courses if c.registration == Registration.OPEN]}
             _event(db, batch, listing.value[0].key.source, None, None, "baseline", 0, None, summary, {})
+        _health(db, batch, Outcome.OK, reason, failure_threshold)
         return Outcome.OK
+
+
+def _health(db, batch, outcome, reason, threshold):
+    previous = db.execute("""SELECT kind FROM events WHERE kind IN
+                             ('monitoring_failure','monitoring_recovered') ORDER BY id DESC LIMIT 1""").fetchone()
+    alerted = previous is not None and previous[0] == "monitoring_failure"
+    if outcome == Outcome.OK:
+        if alerted:
+            _event(db, batch, "senac-pa-psg", None, None, "monitoring_recovered", batch, None, None, {})
+    elif not alerted:
+        count, = db.execute("""SELECT count(*) FROM collections WHERE id >
+                            coalesce((SELECT max(id) FROM collections WHERE outcome='OK'),0)""").fetchone()
+        if count >= threshold:
+            _event(db, batch, "senac-pa-psg", None, None, "monitoring_failure", batch, None,
+                   {"consecutive": count, "reason": reason}, {})
 
 
 def _event(db, batch, source, selection, course, kind, revision, before, after, context):
@@ -182,7 +201,8 @@ def _save_selection(db, batch, selection, detail, now, baseline):
             cid = db.execute("""INSERT INTO courses(selection_id,snapshot,last_alias,last_registration,revision)
                                 VALUES (?,?,?,?,?)""", (sid, raw, course.alias, known_status, batch)).lastrowid
         for kind, previous_value, current_value in _course_events(course, before, changes, prior_status, now):
-            emit(cid, kind, row["revision"] if row else 0, previous_value, current_value, title=course.title)
+            emit(cid, kind, row["revision"] if row else 0, previous_value, current_value, title=course.title,
+                 course_state=asdict(course))
 
 
 def _course_events(course, before, changes, prior_status, now):

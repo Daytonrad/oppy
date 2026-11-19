@@ -1,8 +1,17 @@
 import argparse
+import logging
+import os
+import signal
+from datetime import datetime, timezone
+from pathlib import Path
+from threading import Event
 import sqlite3
 from contextlib import closing
 
 from . import database_path, initialize
+from .backup import backup
+from .runtime import Outcome, collect, configuration, run_scheduler
+from .telegram import Telegram
 
 
 def show_status(path):
@@ -13,6 +22,7 @@ def show_status(path):
             print(f"{label}: {' | '.join(row) if row else 'none'}")
         pending, = db.execute("SELECT COUNT(*) FROM outbox WHERE status='pending'").fetchone()
         print(f"Pending notifications: {pending}")
+        print("Telegram: " + ("configured" if Telegram.configured() else "not configured; pending notifications are retained"))
         errors = db.execute("""SELECT observed_at AS at, outcome AS category, reason FROM collections
                                WHERE outcome != 'OK'
                                UNION ALL SELECT last_failure_at, 'delivery', last_error FROM outbox
@@ -26,14 +36,45 @@ def show_status(path):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", nargs="?", choices=["status"])
+    commands = parser.add_subparsers(dest="command")
+    for name in ("status", "run", "smoke", "smoke-telegram"):
+        commands.add_parser(name)
+    commands.add_parser("backup").add_argument("destination", nargs="?")
     args = parser.parse_args()
     path = database_path()
-    version = initialize(path)
-    if args.command == "status":
-        show_status(path)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    if args.command == "smoke":
+        observation = collect(retry=False)
+        for result in (observation.listing, *observation.details):
+            if result.status != Outcome.OK:
+                parser.exit(1, f"{result.status}: {result.reason}\n")
+        print(f"Santarém: {len(observation.details)} seleção(ões)")
+        for selection, result in zip(observation.listing.value, observation.details):
+            titles = ", ".join(course.title for course in result.value.courses)
+            print(f"{selection.notice or selection.url}: {titles}")
+    elif args.command == "smoke-telegram":
+        channel = Telegram.configured()
+        if not channel:
+            parser.exit(1, "Telegram credentials are missing.\n")
+        channel.send({"kind": "test"})
+        print("Telegram confirmed the test message.")
+    elif args.command == "backup":
+        default = path.parent / datetime.now(timezone.utc).strftime("backup-%Y%m%dT%H%M%S%fZ.sqlite3")
+        target = Path(args.destination or os.getenv("BEACON_BACKUP_PATH") or default)
+        backup(path, target)
+        print(f"Backup ready: {target}")
+    elif args.command == "run":
+        interval, threshold = configuration()
+        stop = Event()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, lambda *_: stop.set())
+        run_scheduler(path, Telegram.configured(), stop, interval=interval, threshold=threshold)
     else:
-        print(f"Database ready: {path} (schema {version}, WAL)")
+        version = initialize(path)
+        if args.command == "status":
+            show_status(path)
+        else:
+            print(f"Database ready: {path} (schema {version}, WAL)")
 
 
 if __name__ == "__main__":
