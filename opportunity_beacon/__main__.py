@@ -1,4 +1,5 @@
 import argparse
+from collections import Counter
 import logging
 import os
 import signal
@@ -10,7 +11,8 @@ from contextlib import closing
 
 from . import database_path, initialize
 from .backup import backup
-from .runtime import Outcome, collect, configuration, run_scheduler
+from .models import Registration
+from .runtime import LISTING_URL, Outcome, collect, configuration, run_scheduler
 from .telegram import Telegram
 
 
@@ -47,11 +49,19 @@ def main() -> None:
         observation = collect(retry=False)
         for result in (observation.listing, *observation.details):
             if result.status != Outcome.OK:
-                parser.exit(1, f"{result.status}: {result.reason}\n")
+                stage = "listagem" if observation.failed_url == LISTING_URL else "detalhe"
+                parser.exit(1, f"{result.status} · {stage} · {observation.failed_url}: {result.reason}\n")
+        labels = {Registration.OPEN: "abertas", Registration.CLOSED: "encerradas",
+                  Registration.FULL: "vagas preenchidas", Registration.UNKNOWN: "desconhecida"}
+        totals = Counter()
         print(f"Santarém: {len(observation.details)} seleção(ões)")
         for selection, result in zip(observation.listing.value, observation.details):
-            titles = ", ".join(course.title for course in result.value.courses)
-            print(f"{selection.notice or selection.url}: {titles}")
+            counts = Counter(course.registration for course in result.value.courses)
+            totals.update(counts)
+            print(f"Seleção {selection.notice or selection.url}: " +
+                  ", ".join(f"{name}: {counts[state]}" for state, name in labels.items()))
+        print(f"Total: {totals.total()} curso(s) · " +
+              ", ".join(f"{name}: {totals[state]}" for state, name in labels.items()))
     elif args.command == "smoke-telegram":
         channel = Telegram.configured()
         if not channel:

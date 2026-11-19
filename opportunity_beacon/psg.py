@@ -42,7 +42,31 @@ class _Tree(HTMLParser):
         self.builder.start("root", {})
         self.stack = []
 
+    # Close optional elements only within their own list, paragraph or table scope.
+    paragraph_blocks = frozenset(
+        "address article aside blockquote details div dl fieldset figcaption figure footer form "
+        "h1 h2 h3 h4 h5 h6 header hr li main nav ol p pre section table ul".split()
+    )
+
+    def _close(self, targets, boundaries=()):
+        for index in range(len(self.stack) - 1, -1, -1):
+            tag = self.stack[index]
+            if tag in boundaries:
+                return
+            if tag in targets:
+                while len(self.stack) > index:
+                    self.builder.end(self.stack.pop())
+                return
+
     def handle_starttag(self, tag, attrs):
+        if tag in self.paragraph_blocks:
+            self._close(("p",), ("div", "li", "td", "th", "table", "main", "body"))
+        if tag == "li":
+            self._close(("li",), ("ul", "ol", "menu"))
+        elif tag == "tr":
+            self._close(("tr",), ("table", "tbody", "thead", "tfoot"))
+        elif tag in ("td", "th"):
+            self._close(("td", "th"), ("tr", "table"))
         self.builder.start(tag, dict(attrs))
         if tag in self.void:
             self.builder.end(tag)
@@ -52,9 +76,7 @@ class _Tree(HTMLParser):
     def handle_endtag(self, tag):
         if tag in self.void:
             return
-        if not self.stack or self.stack.pop() != tag:
-            raise ValueError(f"Unexpected closing tag: {tag}")
-        self.builder.end(tag)
+        self._close((tag,))
 
     def handle_data(self, data):
         self.builder.data(data)
@@ -62,8 +84,8 @@ class _Tree(HTMLParser):
     def parse(self, markup):
         self.feed(markup)
         self.close()
-        if self.stack:
-            raise ValueError(f"Unclosed element: {self.stack[-1]}")
+        while self.stack:
+            self.builder.end(self.stack.pop())
         self.builder.end("root")
         return self.builder.close()
 

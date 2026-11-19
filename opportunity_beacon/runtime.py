@@ -49,6 +49,7 @@ class Observation:
     listing: ParseResult
     details: tuple = ()
     retry_after: float = 0
+    failed_url: str | None = None
 
 
 class Stopped(Exception):
@@ -70,17 +71,21 @@ def collect(fetch=fetch_page, *, stop=None, retry=True):
             raise Stopped
         return fetch(url)
 
+    url = LISTING_URL
     try:
-        listing = parse_listing(page(LISTING_URL))
+        listing = parse_listing(page(url))
+        if listing.status != Outcome.OK:
+            return Observation(listing, failed_url=url)
         details = []
         for selection in listing.value or ():
-            result = parse_detail(page(selection.url), selection)
+            url = selection.url
+            result = parse_detail(page(url), selection)
             details.append(result)
             if result.status != Outcome.OK:
-                break
+                return Observation(listing, tuple(details), failed_url=url)
         return Observation(listing, tuple(details))
     except RequestFailure as error:
-        return Observation(ParseResult(Outcome.FAILED, str(error)), retry_after=error.retry_after)
+        return Observation(ParseResult(Outcome.FAILED, str(error)), retry_after=error.retry_after, failed_url=url)
 
 
 def run_scheduler(path, channel, stop, *, interval, threshold, fetch=fetch_page):

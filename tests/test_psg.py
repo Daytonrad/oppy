@@ -147,3 +147,39 @@ def test_identical_classes_are_unresolved():
     matches = match_courses((course, course), (course, course))
     assert len(matches) == 2
     assert all(m.status == MatchStatus.UNRESOLVED and m.previous_index is None for m in matches)
+
+
+def test_unbalanced_pages_preserve_selection_and_course():
+    listing = parse_listing(fixture("listing-unbalanced"))
+    assert listing.status == Outcome.OK
+    selection, = listing.value
+    assert selection.notice == "152/2026"
+    result = parse_detail(fixture("detail-unbalanced"), selection)
+    assert result.status == Outcome.OK
+    course, = result.value.courses
+    assert course.title == "Recepção em Serviços de Saúde"
+    assert course.venue == "Casa Azul"
+
+
+def test_recovered_markup_still_requires_target_and_valid_structure():
+    markup = fixture("listing-unbalanced")
+    missing = parse_listing(markup.replace("Santarém", "Belém"))
+    assert missing.status == Outcome.INCONCLUSIVE and missing.value is None
+    for old, new in [("list-group-item", "other"), ("/santarem/5/", "/belem/5/")]:
+        broken = parse_listing(markup.replace(old, new))
+        assert broken.status == Outcome.FAILED and broken.value is None
+    course = fixture("detail-unbalanced").replace("lista-psg-cursos", "other")
+    broken = parse_detail(course, selection("152/2026"))
+    assert broken.status == Outcome.FAILED and broken.value is None
+
+
+def test_implicit_end_tags_respect_nested_list_and_table_boundaries():
+    from opportunity_beacon.psg import _Tree
+
+    tree = _Tree().parse("<ul><li>A<ul><li>nested</ul><li>B</ul>"
+                         "<table><tr><td>A<td>B<tr><td>C</table>"
+                         "<p>first<p>second<div><span>out of order</div></span>")
+    assert [li.text for li in tree.findall("./ul/li")] == ["A", "B"]
+    assert tree.findtext("./ul/li/ul/li") == "nested"
+    assert [[td.text for td in tr.findall("td")] for tr in tree.findall("./table/tr")] == [["A", "B"], ["C"]]
+    assert [p.text for p in tree.findall("p")] == ["first", "second"]
