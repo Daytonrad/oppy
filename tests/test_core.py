@@ -104,13 +104,14 @@ def test_changes_within_known_selection(tmp_path, samples):
 def test_invalid_or_partial_collection_preserves_state(tmp_path, samples):
     path = tmp_path / "state.db"
     collect(path, samples)
-    tables = ["selections", "courses", "events", "outbox"]
+    tables = ["selections", "courses"]
     previous = [query(path, f"SELECT * FROM {table}") for table in tables]
     for state in (Outcome.INCONCLUSIVE, Outcome.FAILED):
         assert record_collection(path, ParseResult(state, "Listing unavailable")) == state
         assert record_collection(path, ok(tuple(s for s, _ in samples)),
                                  [ok(samples[0][1]), ParseResult(state, "Detail unavailable")]) == state
     assert previous == [query(path, f"SELECT * FROM {table}") for table in tables]
+    assert kinds(path) == ["baseline", "monitoring_failure"]
     assert query(path, "SELECT count(*) FROM collections") == [(5,)]
 
 
@@ -207,7 +208,7 @@ def test_upgrade_from_schema_one(tmp_path):
         db.execute("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT)")
         db.execute("INSERT INTO schema_migrations VALUES (1, 'original migration')")
         db.execute("PRAGMA user_version=1")
-    assert initialize(path) == initialize(path) == 2
+    assert initialize(path) == initialize(path) == 3
     assert query(path, "SELECT applied_at FROM schema_migrations WHERE version=1") == [("original migration",)]
     assert query(path, "PRAGMA foreign_key_check") == []
 
