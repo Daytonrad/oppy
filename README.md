@@ -42,6 +42,12 @@ docker compose run --rm beacon python -m opportunity_beacon smoke-telegram
 
 The first command after the build checks one listing and the linked Santarém details, prints a summary and exits. It skips retries, SQLite and notifications. The Telegram check sends one test message to the configured chat. The automated test suite uses fixtures and loopback simulations.
 
+## View the saved summary
+
+Run `python -m opportunity_beacon summary` (or `docker compose exec beacon python -m opportunity_beacon summary`) to print the saved selections and course counts, with details for open and upcoming registrations. Upcoming means an unknown registration status with a published start after the last successful collection. The command reads SQLite without contacting the portal or changing the outbox.
+
+Use `summary --send` to send the same report directly to the configured Telegram chat once. Initial summaries and selection-level notices read course details from saved snapshots at delivery. If those snapshots have changed since the event, the notice labels their updated time. Long reports use numbered messages with complete course blocks. A delivery retry may repeat already accepted parts. If a single block exceeds the Telegram limit, delivery reports an error instead of discarding course details.
+
 ## Back up and restore
 
 Use SQLite's online backup while the service runs:

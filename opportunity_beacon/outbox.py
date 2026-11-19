@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Protocol
 
 
+from .summary import delivery_context
+
+
 class DeliveryUnavailable(RuntimeError):
     """Pause this batch when the provider is unavailable."""
 
@@ -32,9 +35,9 @@ def deliver_pending(path: Path, channel: Channel, *, should_stop=lambda: False) 
     """Attempt each pending row once per call, outside the collection transaction."""
     sent = 0
     with closing(sqlite3.connect(path)) as db:
-        pending = db.execute("""SELECT event_id, payload FROM outbox JOIN events ON id=event_id
+        pending = db.execute("""SELECT event_id, payload, collection_id FROM outbox JOIN events ON id=event_id
                                 WHERE status='pending' ORDER BY event_id""").fetchall()
-        for event_id, payload in pending:
+        for event_id, payload, collection_id in pending:
             if should_stop():
                 break
             with db:
@@ -43,7 +46,10 @@ def deliver_pending(path: Path, channel: Channel, *, should_stop=lambda: False) 
             if not claimed.rowcount:
                 continue
             try:
-                confirmed = channel.send(dict(json.loads(payload), event_id=event_id))
+                with db:
+                    db.execute("BEGIN")
+                    notification = delivery_context(db, dict(json.loads(payload), event_id=event_id), collection_id)
+                confirmed = channel.send(notification)
                 if confirmed is not True:
                     raise RuntimeError("Channel did not confirm delivery")
             except Exception as error:

@@ -12,20 +12,21 @@ from .outbox import DeliveryUnavailable
 from .runtime import LISTING_URL
 
 TITLES = {
-    "baseline": "Resumo inicial · Santarém",
-    "new_selection": "Nova oportunidade · Seleção publicada",
-    "new_course": "Nova oportunidade · Curso publicado",
-    "registration_announced": "Nova oportunidade · Inscrições futuras",
-    "registration_opened": "Inscrições abertas",
-    "registration_reopened": "Inscrições reabertas",
-    "registration_closed": "Alteração · Inscrições encerradas",
-    "places_filled": "Alteração · Vagas preenchidas",
-    "dates_changed": "Alteração · Datas atualizadas",
-    "new_document": "Alteração · Novo documento",
-    "amendment": "Alteração · Retificação",
-    "monitoring_failure": "Falha de monitoramento",
-    "monitoring_recovered": "Monitoramento restabelecido",
-    "test": "Teste do OpportunityBeacon",
+    "summary": "📋 Resumo do estado salvo",
+    "baseline": "📋 Resumo inicial · Santarém",
+    "new_selection": "📢 Nova oportunidade · Seleção publicada",
+    "new_course": "🆕 Nova oportunidade · Curso publicado",
+    "registration_announced": "🗓️ Nova oportunidade · Inscrições futuras",
+    "registration_opened": "🟢 Inscrições abertas",
+    "registration_reopened": "🔄 Inscrições reabertas",
+    "registration_closed": "🔒 Alteração · Inscrições encerradas",
+    "places_filled": "🈵 Alteração · Vagas preenchidas",
+    "dates_changed": "📅 Alteração · Datas atualizadas",
+    "new_document": "📄 Alteração · Novo documento",
+    "amendment": "✏️ Alteração · Retificação",
+    "monitoring_failure": "⚠️ Falha de monitoramento",
+    "monitoring_recovered": "✅ Monitoramento restabelecido",
+    "test": "🧪 Teste do OpportunityBeacon",
 }
 DATES = {"registration_start": "Início das inscrições", "registration_end": "Fim das inscrições",
          "course_start": "Início do curso", "course_end": "Fim do curso"}
@@ -38,24 +39,54 @@ def format_date(value):
     return date.fromisoformat(value).strftime("%d/%m/%Y")
 
 
-def message(event):
+def course_block(course, notice, url, *, category=None, changes=None):
+    labels = STATES | {"future": "Inscrições futuras"}
+    mode = course.get("registration_mode")
+    fields = [("Curso", course.get("title")), ("Seleção", notice),
+              ("Situação", labels.get(category or course.get("registration"))),
+              ("Modalidade da inscrição", mode), ("Local", course.get("venue"))]
+    for key, label in DATES.items():
+        if changes is None:
+            value = course.get(key)
+            if value:
+                fields.append((label, format_date(value)))
+        elif key in changes[1]:
+            old, new = changes[0].get(key), changes[1][key]
+            if old != new:
+                values = [format_date(v) for v in (old, new) if v]
+                if values:
+                    if old and not new:
+                        label += " (valor anterior)"
+                    fields.append((label, " → ".join(values)))
+    fields.append(("Página da seleção", url))
+    return "\n".join(f"{label}: {value}" for label, value in fields if value)
+
+
+def blocks(event):
     kind = event["kind"]
     lines = [TITLES[kind]]
     if kind != "test":
         lines.append("Fonte: Senac Pará PSG · Santarém")
+    if event.get("detail_time"):
+        stamp = datetime.fromisoformat(event["detail_time"])
+        lines.append("Detalhes do estado atualizado em " + stamp.strftime("%d/%m/%Y às %H:%M %z"))
     after = event.get("after")
     data = after if isinstance(after, dict) else {}
-    state = event.get("course_state") or (data if kind in ("new_course", "new_selection") else {})
-    for label, value in (("Seleção", event.get("notice")), ("Curso", event.get("title") or state.get("title")),
-                         ("Situação", STATES.get(state.get("registration"))),
-                         ("Inscrição", state.get("registration_mode"))):
-        if value:
-            lines.append(f"{label}: {value}")
+    summary = event.get("summary")
+    if summary is not None:
+        counts = summary["counts"]
+        lines.append(f"Seleções: {summary['selections']} · Cursos: {sum(counts.values())}")
+        lines.append(f"Abertas: {counts['open']} · Futuras: {counts['future']} · Encerradas: {counts['closed']}")
+        lines.append(f"Vagas preenchidas: {counts['full']} · Desconhecidas: {counts['unknown']}")
+        return ["\n".join(lines),
+                *(course_block(c, c["notice"], c["url"], category=c["category"]) for c in summary["eligible"]),
+                "Listagem geral: " + LISTING_URL]
     if kind == "baseline":
-        lines.append(f"{data['selections']} seleção(ões), {data['courses']} curso(s).")
-        if data["open_courses"]:
-            lines.append("Com inscrições abertas: " + ", ".join(data["open_courses"]))
-    elif kind == "monitoring_failure":
+        # Old pending baselines only stored totals and open titles.
+        lines.append(f"Seleções: {data['selections']} · Cursos: {data['courses']}")
+        return ["\n".join(lines), *("Curso com inscrições abertas: " + title for title in data["open_courses"]),
+                "Listagem geral: " + LISTING_URL]
+    if kind == "monitoring_failure":
         lines.append(f"Coletas consecutivas sem sucesso: {data['consecutive']}.")
         reason = data["reason"]
         if reason.startswith("Unresolved course identity:"):
@@ -71,25 +102,52 @@ def message(event):
         lines.append(f"Motivo: {reason}")
     elif kind in ("new_document", "amendment") and data.get("label"):
         lines.append(data["label"])
-    for field, label in DATES.items():
-        value = state.get(field)
-        if kind == "dates_changed" and field in data:
-            old = (event.get("before") or {}).get(field)
-            values = [format_date(v) if v else "não informado" for v in (old, data[field])]
-            lines.append(f"{label}: {' → '.join(values)}")
-        elif value:
-            lines.append(f"{label}: {format_date(value)}")
-    if kind == "registration_announced" and not state and isinstance(after, str):
-        lines.append(f"Início das inscrições: {format_date(after)}")
-    link = event.get("url") or (LISTING_URL if kind == "baseline" else None)
-    if link:
-        lines.append(link)
-    # One message per event, including unusually large baseline summaries.
-    text = "\n".join(lines)
-    utf16 = text.encode("utf-16-le")
-    if len(utf16) > 8192:
-        return utf16[:8190].decode("utf-16-le", errors="ignore") + "…"
-    return text
+    if kind in ("new_document", "amendment") and data.get("url"):
+        lines.append("Documento: " + data["url"])
+    states = event.get("selection_courses")
+    if states is None:
+        state = event.get("course_state") or (data if kind in ("new_course", "new_selection") else {})
+        state = dict(state)
+        if event.get("title"):
+            state["title"] = event["title"]
+        if kind == "registration_announced" and isinstance(after, str):
+            state["registration_start"] = after
+        states = [state]
+    changes = (event.get("before") or {}, data) if kind == "dates_changed" else None
+    parts = [course_block(c, event.get("notice"), event.get("url"), changes=changes) for c in states]
+    return ["\n".join(lines), *(part for part in parts if part)]
+
+
+def message(event):
+    return "\n\n".join(blocks(event))
+
+
+def pages(event):
+    parts = blocks(event)
+    def size(text):
+        return len(text.encode("utf-16-le")) // 2
+
+    if size("\n\n".join(parts)) <= 4096:
+        return ["\n\n".join(parts)]
+    # Pack again only if numbering crosses a digit boundary (e.g. 9 to 10 pages).
+    digits = 1
+    while True:
+        result = []
+        current = ""
+        for part in parts:
+            prefix_size = len(str(len(result) + 1)) + digits + 2
+            combined = current + "\n\n" + part if current else part
+            if current and size(combined) + prefix_size > 4096:
+                result.append(current)
+                current = part
+            else:
+                current = combined
+            if size(current) + len(str(len(result) + 1)) + digits + 2 > 4096:
+                raise DeliveryUnavailable("Um bloco excede o limite de uma mensagem do Telegram")
+        result.append(current)
+        if len(str(len(result))) == digits:
+            return [f"{i}/{len(result)}\n{text}" for i, text in enumerate(result, 1)]
+        digits = len(str(len(result)))
 
 
 class Telegram:
@@ -110,7 +168,12 @@ class Telegram:
             raise DeliveryUnavailable("Configuração de credencial inválida")
         if time.monotonic() < self.resume_at:
             raise DeliveryUnavailable("Telegram solicitou uma pausa")
-        body = json.dumps({"chat_id": self._chat, "text": message(event),
+        for text in pages(event):
+            self._send_page(text)
+        return True
+
+    def _send_page(self, text):
+        body = json.dumps({"chat_id": self._chat, "text": text,
                            "link_preview_options": {"is_disabled": True}}).encode()
         req = Request("https://api.telegram.org/bot" + self._token + "/sendMessage",
                       data=body, headers={"Content-Type": "application/json"})
@@ -120,7 +183,7 @@ class Telegram:
             if (isinstance(response, dict) and response.get("ok") is True
                     and isinstance(response.get("result"), dict)
                     and isinstance(response["result"].get("message_id"), int)):
-                return True
+                return
         except RequestFailure as error:
             self.resume_at = time.monotonic() + error.retry_after
         except (ValueError, OSError):

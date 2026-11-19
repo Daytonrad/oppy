@@ -13,7 +13,8 @@ from . import database_path, initialize
 from .backup import backup
 from .models import Registration
 from .runtime import LISTING_URL, Outcome, collect, configuration, run_scheduler
-from .telegram import Telegram
+from .summary import saved_summary
+from .telegram import Telegram, message
 
 
 def show_status(path):
@@ -41,11 +42,24 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command")
     for name in ("status", "run", "smoke", "smoke-telegram"):
         commands.add_parser(name)
+    commands.add_parser("summary").add_argument("--send", action="store_true")
     commands.add_parser("backup").add_argument("destination", nargs="?")
     args = parser.parse_args()
     path = database_path()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    if args.command == "smoke":
+    if args.command == "summary":
+        try:
+            event = saved_summary(path)
+        except (sqlite3.Error, ValueError):
+            parser.exit(1, "Resumo indisponível: verifique o banco e a existência de uma coleta válida.\n")
+        if args.send:
+            channel = Telegram.configured()
+            if not channel:
+                parser.exit(1, "Telegram credentials are missing.\n")
+            channel.send(event)
+        else:
+            print(message(event))
+    elif args.command == "smoke":
         observation = collect(retry=False)
         for result in (observation.listing, *observation.details):
             if result.status != Outcome.OK:
