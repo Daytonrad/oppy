@@ -59,8 +59,7 @@ class Course:
     @property
     def natural_key(self):
         return (self.selection, normalize(self.title).casefold(),
-                normalize(self.venue).casefold() if self.venue else None,
-                self.course_start, self.course_end)
+                normalize(self.venue).casefold() if self.venue else None)
 
 
 @dataclass(frozen=True)
@@ -121,27 +120,48 @@ def match_courses(previous: tuple[Course, ...], current: tuple[Course, ...]) -> 
     available = set(range(len(previous)))
     pending = set(range(len(current)))
 
-    def alias_key(course):
-        return (course.selection, course.alias) if course.alias else None
+    def group_indices(records, key_of):
+        groups = defaultdict(list)
+        for index, course in enumerate(records):
+            key = key_of(course)
+            if key is not None:
+                groups[key].append(index)
+        return groups
 
-    def natural_key(course):
-        key = course.natural_key
-        return key if None not in key else None
-
-    for key_of in (alias_key, natural_key):
-        old_groups, new_groups = defaultdict(list), defaultdict(list)
-        for i in available:
-            old_groups[key_of(previous[i])].append(i)
-        for j in pending:
-            new_groups[key_of(current[j])].append(j)
-        for key, new_indices in new_groups.items():
-            old_indices = old_groups.get(key, [])
-            if key is None or len(new_indices) != 1 or len(old_indices) != 1:
+    def match_unique(old_groups, new_groups):
+        for key in old_groups.keys() & new_groups.keys():
+            old_indices, new_indices = old_groups[key], new_groups[key]
+            if len(old_indices) != 1 or len(new_indices) != 1:
                 continue
             i, j = old_indices[0], new_indices[0]
+            if i not in available or j not in pending:
+                continue
             if previous[i].alias and current[j].alias and previous[i].alias != current[j].alias:
                 continue
             matches[j] = Match(MatchStatus.MATCHED, i)
             available.remove(i)
             pending.remove(j)
+
+    def alias_key(course):
+        return (course.selection, course.alias) if course.alias else None
+
+    def natural_key(course):
+        key = course.natural_key
+        return key if all(key) else None
+
+    match_unique(group_indices(previous, alias_key), group_indices(current, alias_key))
+    old_keys = group_indices(previous, natural_key)
+    new_keys = group_indices(current, natural_key)
+    match_unique(old_keys, new_keys)
+
+    tied = {key for key in old_keys.keys() & new_keys.keys()
+            if len(old_keys[key]) > 1 or len(new_keys[key]) > 1}
+
+    def period_key(course):
+        key = course.natural_key
+        if key in tied and course.course_start is not None and course.course_end is not None:
+            return key, course.course_start, course.course_end
+        return None
+
+    match_unique(group_indices(previous, period_key), group_indices(current, period_key))
     return tuple(matches)
