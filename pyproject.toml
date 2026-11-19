@@ -1,0 +1,11 @@
+[project]
+name = "opportunity-beacon"
+version = "0.1.0"
+description = "Local opportunity monitoring foundation"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

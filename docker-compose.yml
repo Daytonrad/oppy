@@ -1,0 +1,13 @@
+services:
+  beacon:
+    build:
+      context: .
+      network: none
+    network_mode: none
+    environment:
+      BEACON_DB_PATH: ${BEACON_DB_PATH:-data/beacon.sqlite3}
+    volumes:
+      - beacon-data:/app/data
+
+volumes:
+  beacon-data:
