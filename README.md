@@ -2,28 +2,38 @@
 
 # Oppy
 
-I use Oppy to track free PSG courses in Santarém and receive changes through Telegram.
+Oppy is a self-hosted monitor that checks public opportunity listings at regular intervals and sends Telegram alerts when listings appear or change. It currently supports one source: Senac Pará’s free course program (PSG) in Santarém.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2468a2?style=flat)
 ![SQLite](https://img.shields.io/badge/storage-SQLite-486477?style=flat)
-[![Telegram bot](https://img.shields.io/badge/Telegram-bot-2987ac?style=flat)](https://t.me/oppybeacon_bot)
+[![Telegram bot](https://img.shields.io/badge/Telegram-bot-2987ac?style=flat)](https://core.telegram.org/bots)
 [![Tests](https://img.shields.io/github/actions/workflow/status/kayo-willian/oppy/tests.yml?branch=main&label=tests&style=flat)](https://github.com/kayo-willian/oppy/actions/workflows/tests.yml)
 ![Built with vibe coding](https://img.shields.io/badge/built%20with-vibe%20coding-c87824?style=flat)
 
+## Supported sources
+
+| Source | Scope | Status |
+|---|---|---|
+| Senac Pará PSG | Free courses in Santarém, across all subject areas | Operational |
+
 ## What it does
 
-Oppy watches Programa Senac de Gratuidade selections in Santarém across all course areas. I get alerts for new selections and courses, future registration windows, openings, closures, filled places, reopenings, revised dates, new documents and amendments. After consecutive unsuccessful checks, Oppy alerts me to the failure and later to recovery. It only observes public offers and sends notifications. It never submits applications or collects candidates’ personal data.
+Oppy compares each collection with the last valid one and records each new listing or change once, so repeated checks do not queue duplicate alerts. A failed check is recorded as a failure and never treated as an empty listing. Oppy sends an alert after consecutive unsuccessful checks and another when collection recovers. It only observes listings and sends notifications. It never submits applications or collects personal information about applicants.
+
+The PSG connector detects new selections and courses, upcoming registration windows, openings, closures, filled places and reopenings. It also tracks revised dates, new documents and amendments.
 
 ## How it works
 
 ```text
-PSG portal → parser → SQLite → outbox → Telegram
+source connector → parser → SQLite → outbox → Telegram
 ```
 
+The current connector is [oppy/psg.py](oppy/psg.py).
+
 - The first valid collection queues one summary. Long summaries travel in numbered parts with whole course blocks.
-- Within a selection, I match courses by a unique source ID first, then by normalized title and venue. The course period breaks ties between otherwise identical classes.
+- Within a selection, Oppy matches courses by a unique source ID first, then by normalized title and venue. The course period breaks ties between otherwise identical classes.
 - A failed or inconclusive collection preserves the last valid state. A missing municipality panel cannot erase the course list.
 - Each change and its pending notification commit together. The outbox uses at-least-once delivery and records success after Telegram confirms receipt.
 - HTTP 403, 429 or 503 ends the current cycle. Later cycles back off and honor a longer Retry-After. A successful collection restores the configured interval.
@@ -32,11 +42,21 @@ See the [parser rules](docs/psg-parser.md) and [SQLite and delivery notes](docs/
 
 ## Quick start
 
-On Linux with Docker Compose, I run these commands from the repository root. I configure my local credentials before testing Telegram.
+### Create the Telegram bot
+
+1. Open a chat with `@BotFather` in Telegram. Send `/newbot`, follow the prompts and save the token.
+2. Open a private chat with the new bot and send it a message.
+3. In your browser, open `https://api.telegram.org/bot<TOKEN>/getUpdates`, replacing `<TOKEN>` with your token. Find the message you just sent and copy the numeric `id` inside its `chat` object.
+4. From the repository root, copy `.env.example` to `.env` if you do not already have one. Set `BEACON_TELEGRAM_TOKEN` to the token and `BEACON_TELEGRAM_CHAT_ID` to the chat ID.
+
+Treat the token like a password. Never commit or share it. The `getUpdates` URL contains the token and is saved in your browser history. If the token is exposed, revoke it with `/revoke` in BotFather.
+
+### Run with Docker Compose
+
+Run these commands from the repository root on Linux.
 
 | Task | Command |
 |---|---|
-| Prepare local configuration | `cp .env.example .env`, then edit `.env` |
 | Build the image | `docker compose build` |
 | Check the portal once | `docker compose run --rm oppy python -m oppy smoke` |
 | Send one test message | `docker compose run --rm oppy python -m oppy smoke-telegram` |
@@ -63,13 +83,13 @@ I kept the `BEACON_` prefix for compatibility with existing `.env` files.
 
 ## Limitations
 
-I only receive observations while the machine and service are running. A short registration window can pass between checks. At-least-once delivery can produce a duplicate if the process stops after Telegram accepts a message and before SQLite records success.
+Oppy checks listings only while the machine and service are running. A short registration window can pass between checks. At-least-once delivery can produce a duplicate if the process stops after Telegram accepts a message and before SQLite records success.
 
 In-person registration can have an unknown status. Extraction depends on the portal’s HTML. A complete cycle requests the listing once and follows one detail link per Santarém selection, with at most one retry for eligible transient errors.
 
 ## Tests
 
-I use saved HTML, temporary SQLite databases and local HTTP simulations. CI runs the offline suite. Checks against the live portal are manual.
+The tests use saved HTML, temporary SQLite databases and local HTTP simulations. CI runs the offline suite. Checks against the live portal are manual.
 
 ```sh
 python3 -m venv .venv
@@ -78,6 +98,14 @@ python -m pip install "pip>=25.1"
 python -m pip install --group dev
 python -m pytest -q
 ```
+
+## Roadmap
+
+Planned, not implemented.
+
+- Support public listing sources beyond PSG.
+- Add notification channels beyond Telegram.
+- Save the HTML from checks that fail structural validation for diagnosis.
 
 ## Independence note
 
