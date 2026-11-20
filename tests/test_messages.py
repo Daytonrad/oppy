@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from opportunity_beacon.core import record_collection
-from opportunity_beacon.outbox import DeliveryUnavailable, MemoryChannel, deliver_pending
-from opportunity_beacon.psg import parse_detail, parse_listing
-from opportunity_beacon.summary import saved_summary
-from opportunity_beacon.telegram import Telegram, blocks, message, pages
+from oppy.core import record_collection
+from oppy.outbox import DeliveryUnavailable, MemoryChannel, deliver_pending
+from oppy.psg import parse_detail, parse_listing
+from oppy.summary import saved_summary
+from oppy.telegram import Telegram, blocks, message, pages
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -49,7 +49,7 @@ def test_saved_summary_and_initial_event_match(tmp_path):
     assert "/santarem/5/948" in future
     assert "Defesa de Redes" not in message(event) and "Assistente de Recursos Humanos" not in message(event)
     before = dump(path)
-    result = subprocess.run([sys.executable, "-m", "opportunity_beacon", "summary"],
+    result = subprocess.run([sys.executable, "-m", "oppy", "summary"],
                             env={**os.environ, "BEACON_DB_PATH": str(path)}, text=True,
                             capture_output=True, check=True)
     assert result.stdout.rstrip() == message(event)
@@ -102,7 +102,7 @@ def test_date_change_and_document_blocks(tmp_path):
 
 def test_missing_database_is_not_created(tmp_path):
     path = tmp_path / "missing.db"
-    result = subprocess.run([sys.executable, "-m", "opportunity_beacon", "summary"],
+    result = subprocess.run([sys.executable, "-m", "oppy", "summary"],
                             env={**os.environ, "BEACON_DB_PATH": str(path)}, capture_output=True)
     assert result.returncode and not path.exists()
 

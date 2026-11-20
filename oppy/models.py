@@ -1,4 +1,4 @@
-"""Source-independent opportunity snapshots and identity comparisons."""
+"""Source-independent selection and course snapshots and identity comparisons."""
 
 import hashlib
 import json

@@ -1,7 +1,7 @@
 [project]
-name = "opportunity-beacon"
+name = "oppy"
 version = "0.1.0"
-description = "Local opportunity monitoring foundation"
+description = "Monitor free PSG courses in Santarém"
 requires-python = ">=3.11"
 
 [project.optional-dependencies]

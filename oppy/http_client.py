@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from datetime import timezone
 from email.utils import parsedate_to_datetime
 
-USER_AGENT = "OpportunityBeacon/0.1.0 (+https://github.com/kayo-willian/opportunity-beacon)"
+USER_AGENT = "Oppy/0.1.0 (OpportunityBeacon; +https://github.com/kayo-willian/oppy)"
 CONNECT_TIMEOUT = 5
 TOTAL_TIMEOUT = 15
 MAX_PAGE_BYTES = 2 * 1024 * 1024

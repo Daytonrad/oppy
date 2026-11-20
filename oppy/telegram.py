@@ -26,7 +26,7 @@ TITLES = {
     "amendment": "✏️ Alteração · Retificação",
     "monitoring_failure": "⚠️ Falha de monitoramento",
     "monitoring_recovered": "✅ Monitoramento restabelecido",
-    "test": "🧪 Teste do OpportunityBeacon",
+    "test": "🧪 Teste do Oppy",
 }
 DATES = {"registration_start": "Início das inscrições", "registration_end": "Fim das inscrições",
          "course_start": "Início do curso", "course_end": "Fim do curso"}

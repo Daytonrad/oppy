@@ -4,7 +4,7 @@ On 19 November 2026 we sampled the public Senac Pará PSG listing and two Santar
 
 ## Access
 
-GET /robots.txt returned 404. The listing returned 200 twice. The first response could not be inspected because a local HTML library was unavailable. Both detail GETs returned 200. Requests identified OpportunityBeacon and its repository, with a four-second connection timeout, ten-second total timeout, zero automatic retries and no redirects. No assets, forms, PDFs or policy pages were requested.
+GET /robots.txt returned 404. The listing returned 200 twice. The first response could not be inspected because a local HTML library was unavailable. Both detail GETs returned 200. Requests identified the project and linked to its repository, with a four-second connection timeout, ten-second total timeout, zero automatic retries and no redirects. No assets, forms, PDFs or policy pages were requested.
 
 A local search of listing links and sampled page text found no identifiable terms of use, access policy or polling interval. No explicit conflict with a 30-minute interval was observed. Whether recurring automated access at that interval is permitted remains unresolved. The 404 and successful page loads do not establish permission. Confirm applicable conditions and whether the interval covers detail requests before enabling polling.
 

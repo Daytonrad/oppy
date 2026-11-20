@@ -1,4 +1,4 @@
-"""SQLite initialization for OpportunityBeacon."""
+"""SQLite initialization for Oppy."""
 
 import os
 import sqlite3

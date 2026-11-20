@@ -1,6 +1,6 @@
 # Offline collections and notification delivery
 
-Call `record_collection(path, listing, details, observed_at=...)` with a parsed listing and one detail result for each listed selection. The optional observation time must include a UTC offset. The function reads the last valid snapshots inside a SQLite write transaction and returns the recorded outcome. The no-argument command initializes the database and exits. The run command starts the scheduler. Run `python -m opportunity_beacon status` for local diagnostics.
+Call `record_collection(path, listing, details, observed_at=...)` with a parsed listing and one detail result for each listed selection. The optional observation time must include a UTC offset. The function reads the last valid snapshots inside a SQLite write transaction and returns the recorded outcome. The no-argument command initializes the database and exits. The run command starts the scheduler. Run `python -m oppy status` for local diagnostics.
 
 Schema version 2 adds five tables. Collections record UTC time, outcome and reason. Selections and courses store the latest accepted snapshots. Courses use a local stable ID and retain the last observed alias and definite registration status. Events store a unique transition key and the notification payload. Each event owns one outbox row. Snapshot changes, collection history, events and pending rows commit together.
 

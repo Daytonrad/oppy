@@ -1,70 +1,75 @@
-# OpportunityBeacon
+![OPPY pixel-art sign](assets/oppy-cover.svg)
 
-I started OpportunityBeacon to discover opportunities without checking the same websites manually. The idea, requirements and direction are mine. I use OpenAI Codex to help implement the software.
+# Oppy
 
-OpportunityBeacon monitors public PSG selections for all course areas in Santarém, Pará. Senac Pará is the information source. The first valid collection produces a single summary. Subsequent observations can announce new courses, registration changes, revised dates and documents.
+I use Oppy to track free PSG courses in Santarém and receive changes through Telegram.
 
-## Configure and run on Linux
+[![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2468a2?style=flat)
+![SQLite](https://img.shields.io/badge/storage-SQLite-486477?style=flat)
+[![Telegram bot](https://img.shields.io/badge/Telegram-bot-2987ac?style=flat)](https://t.me/oppybeacon_bot)
+[![Tests](https://img.shields.io/github/actions/workflow/status/kayo-willian/oppy/tests.yml?branch=main&label=tests&style=flat)](https://github.com/kayo-willian/oppy/actions/workflows/tests.yml)
+![Built with vibe coding](https://img.shields.io/badge/built%20with-vibe%20coding-c87824?style=flat)
 
-Copy `.env.example` to `.env` in the repository root. Docker Compose reads this file. Set the following values as needed:
+## What it does
 
-| Variable | Purpose |
+Oppy watches Programa Senac de Gratuidade selections in Santarém across all course areas. I get alerts for new selections and courses, future registration windows, openings, closures, filled places, reopenings, revised dates, new documents and amendments. After consecutive unsuccessful checks, Oppy alerts me to the failure and later to recovery. It only observes public offers and sends notifications. It never submits applications or collects candidates’ personal data.
+
+## How it works
+
+```text
+PSG portal → parser → SQLite → outbox → Telegram
+```
+
+- The first valid collection queues one summary. Long summaries travel in numbered parts with whole course blocks.
+- Within a selection, I match courses by a unique source ID first, then by normalized title and venue. The course period breaks ties between otherwise identical classes.
+- A failed or inconclusive collection preserves the last valid state. A missing municipality panel cannot erase the course list.
+- Each change and its pending notification commit together. The outbox uses at-least-once delivery and records success after Telegram confirms receipt.
+- HTTP 403, 429 or 503 ends the current cycle. Later cycles back off and honor a longer Retry-After. A successful collection restores the configured interval.
+
+See the [parser rules](docs/psg-parser.md) and [SQLite and delivery notes](docs/offline-core.md).
+
+## Quick start
+
+On Linux with Docker Compose, I run these commands from the repository root. I configure my local credentials before testing Telegram.
+
+| Task | Command |
 |---|---|
-| BEACON_DB_PATH | SQLite file, default `data/beacon.sqlite3`. In Compose keep it under `/app/data`, the persistent volume. |
-| BEACON_INTERVAL_MINUTES | Minutes to wait after a completed cycle. Default 30, minimum 10. Confirm the permitted frequency with the source before starting recurring checks. |
-| BEACON_FAILURE_ALERT_AFTER | Consecutive failed or inconclusive collections that trigger one incident alert. Default 3. Recovery queues one more message. |
-| BEACON_TELEGRAM_TOKEN | Bot credential obtained through BotFather. Keep the real value in the local environment file. |
-| BEACON_TELEGRAM_CHAT_ID | Destination chat for the bot. If either Telegram setting is empty, collection continues and messages stay pending. |
-| BEACON_BACKUP_PATH | Optional new file for a backup. By default, a UTC-timestamped file is created beside the database. |
+| Prepare local configuration | `cp .env.example .env`, then edit `.env` |
+| Build the image | `docker compose build` |
+| Check the portal once | `docker compose run --rm oppy python -m oppy smoke` |
+| Send one test message | `docker compose run --rm oppy python -m oppy smoke-telegram` |
+| Start the scheduler | `docker compose up -d` |
+| Inspect the last checks and pending messages | `docker compose exec oppy python -m oppy status` |
+| Print the saved summary | `docker compose exec oppy python -m oppy summary` |
+| Send the saved summary directly | `docker compose exec oppy python -m oppy summary --send` |
+| Create a consistent SQLite backup | `docker compose exec oppy python -m oppy backup` |
 
-Start the scheduler, inspect its local state and stop it with:
+For an existing installation, stop the previous Compose service before starting Oppy. Keep its volume when shutting down. Compose explicitly reuses `opportunity-beacon_beacon-data` across directory and project renames. Both the database and its WAL files stay under `/app/data`. Avoid `docker compose down -v`, which removes volumes.
 
-```sh
-docker compose up -d --build
-docker compose exec beacon python -m opportunity_beacon status
-docker compose logs --tail=50 beacon
-docker compose down
-```
+## Configuration
 
-The service uses outbound HTTPS, publishes no ports and restarts unless stopped. The volume survives container recreation and ordinary shutdown. The machine must be on and the service running to observe changes. A short registration window can be missed while offline. After changing credentials, recreate the service with `docker compose up -d`.
+I kept the `BEACON_` prefix for compatibility with existing `.env` files.
 
-For a native Linux run, export the configuration in your shell and use `python -m opportunity_beacon run` with Python 3.11 or newer and system timezone data. The no-argument command initializes the SQLite file and exits. Status, backup and the manual checks below are available through the same module.
+| Variable | Meaning and default |
+|---|---|
+| `BEACON_DB_PATH` | SQLite path. Defaults to `data/beacon.sqlite3`. Keep it under the mounted data directory in Compose. |
+| `BEACON_INTERVAL_MINUTES` | Minutes to wait after a completed cycle. Default 30, minimum 10. |
+| `BEACON_FAILURE_ALERT_AFTER` | Consecutive failed or inconclusive checks before one incident alert. Default 3. |
+| `BEACON_TELEGRAM_TOKEN` | Bot token from BotFather. Empty by default. |
+| `BEACON_TELEGRAM_CHAT_ID` | Destination chat. If either Telegram setting is empty, notifications remain pending. |
+| `BEACON_BACKUP_PATH` | New destination file. Defaults to a timestamped file beside the database. |
 
-## Manual checks
+## Limitations
 
-Run these individually when ready to access the real services. To test before starting recurring monitoring, build the image and use one-off containers:
+I only receive observations while the machine and service are running. A short registration window can pass between checks. At-least-once delivery can produce a duplicate if the process stops after Telegram accepts a message and before SQLite records success.
 
-```sh
-docker compose build
-docker compose run --rm beacon python -m opportunity_beacon smoke
-docker compose run --rm beacon python -m opportunity_beacon smoke-telegram
-```
+In-person registration can have an unknown status. Extraction depends on the portal’s HTML. A complete cycle requests the listing once and follows one detail link per Santarém selection, with at most one retry for eligible transient errors.
 
-The first command after the build checks one listing and the linked Santarém details, prints a summary and exits. It skips retries, SQLite and notifications. The Telegram check sends one test message to the configured chat. The automated test suite uses fixtures and loopback simulations.
+## Tests
 
-## View the saved summary
-
-Run `python -m opportunity_beacon summary` (or `docker compose exec beacon python -m opportunity_beacon summary`) to print the saved selections and course counts, with details for open and upcoming registrations. Upcoming means an unknown registration status with a published start after the last successful collection. The command reads SQLite without contacting the portal or changing the outbox.
-
-Use `summary --send` to send the same report directly to the configured Telegram chat once. Initial summaries and selection-level notices read course details from saved snapshots at delivery. If those snapshots have changed since the event, the notice labels their updated time. Long reports use numbered messages with complete course blocks. A delivery retry may repeat already accepted parts. If a single block exceeds the Telegram limit, delivery reports an error instead of discarding course details.
-
-## Back up and restore
-
-Use SQLite's online backup while the service runs:
-
-```sh
-docker compose exec beacon python -m opportunity_beacon backup
-```
-
-The command prints the destination. An explicit new path after `backup` takes precedence over the environment setting. Existing backups are preserved. Keep container backups under `/app/data` and copy the completed snapshot out of the container for independent storage. To restore, stop the scheduler, place the snapshot at a fresh path in the volume, point `BEACON_DB_PATH` to that path and restart. Pending messages in the restored snapshot are eligible for delivery.
-
-## Reliability
-
-The scheduler runs one cycle at a time and waits after completion. Its database lock prevents another scheduler on the same local database. Connection and total deadlines are 5 and 15 seconds per attempt, with a 2 MiB HTML limit. The client declines redirects. Transient connection errors and HTTP 500, 502 or 504 get at most one retry after one second. HTTP 403, 429 and 503 end the cycle immediately. An unsuccessful cycle doubles the delay progressively, capped at six hours (or the configured base interval if longer). A longer Retry-After takes precedence and survives restart. A successful cycle restores the normal interval. SIGTERM interrupts scheduled waits and lets an in-flight bounded request finish.
-
-Delivery is **at-least-once**. A crash after Telegram accepts a message but before SQLite records success may produce a duplicate. A Telegram outage pauses that delivery batch. The next collection still runs. See the storage and delivery details in [the core documentation](docs/offline-core.md).
-
-## Run the offline tests
+I use saved HTML, temporary SQLite databases and local HTTP simulations. CI runs the offline suite. Checks against the live portal are manual.
 
 ```sh
 python3 -m venv .venv
@@ -74,6 +79,23 @@ python -m pip install --group dev
 python -m pytest -q
 ```
 
-CI runs only the offline tests. The runtime uses the Python standard library.
+## Independence note
 
-MIT license.
+Oppy is my independent project. It has no official institutional affiliation, partnership or sponsorship. Senac Pará is the source of the public course information. I received written confirmation of access from the Senac administration.
+
+## How this project was built
+
+I came up with Oppy and defined its goals, requirements, priorities and limits. I did not write the code by hand: the implementation was done through vibe coding, with AI tools working in separate roles.
+
+| Role | Who |
+|---|---|
+| Idea, requirements, decisions, testing on my own machine, reviewing and merging every pull request | Me |
+| Initial project brief | ChatGPT 6 (high effort) |
+| Prompt writing for each phase, review of Codex's reports, technical review of the plan | Claude Sonnet 5.5 (medium effort) |
+| Code, tests and Docker setup | OpenAI Codex, GPT-6.2 Model Astra (medium effort) |
+
+ChatGPT drafted the first brief, Claude reviewed it and suggested improvements (an outbox for notifications, hashes of normalized fields, offline tests with saved HTML, and a clear difference between a failed collection and an empty one), and I sent each phase to Codex as a prompt. Codex opened one pull request per phase. I reviewed each one, ran the Docker and smoke tests myself, and merged it only when I was satisfied. Claude did not have access to the repository and did not run the code; it worked from the reports and outputs I shared.
+
+## License
+
+[MIT](LICENSE).

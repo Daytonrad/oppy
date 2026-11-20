@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from opportunity_beacon.models import MatchStatus, Registration, content_hash, field_diff, match_courses
-from opportunity_beacon.psg import Outcome, parse_detail, parse_listing
+from oppy.models import MatchStatus, Registration, content_hash, field_diff, match_courses
+from oppy.psg import Outcome, parse_detail, parse_listing
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -174,7 +174,7 @@ def test_recovered_markup_still_requires_target_and_valid_structure():
 
 
 def test_implicit_end_tags_respect_nested_list_and_table_boundaries():
-    from opportunity_beacon.psg import _Tree
+    from oppy.psg import _Tree
 
     tree = _Tree().parse("<ul><li>A<ul><li>nested</ul><li>B</ul>"
                          "<table><tr><td>A<td>B<tr><td>C</table>"

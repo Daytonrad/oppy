@@ -1,4 +1,4 @@
-# Working agreements
+# Oppy working agreements
 
 - Implement only the authorized phase. Keep this independent personal project simple.
 - The project idea, requirements and direction belong to the owner. Codex assists with implementation.
