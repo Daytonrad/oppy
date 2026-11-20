@@ -230,3 +230,4 @@ __marimo__/
 *-shm
 *-journal
 /data/
+failed-snapshots/

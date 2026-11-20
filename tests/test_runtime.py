@@ -116,7 +116,8 @@ def test_transport_failure_preserves_state(tmp_path, monkeypatch, error):
         monkeypatch.setattr(runtime, "request", transport)
         def fetch(link):
             return html_for(link) if link == runtime.LISTING_URL else runtime.fetch_page(link)
-        obs = runtime.collect(fetch, stop=Stop(2))
+        obs = runtime.collect(fetch, stop=Stop(2), snapshot_dir=tmp_path / "failed-snapshots")
+        assert not (tmp_path / "failed-snapshots").exists()
     assert record_collection(path, obs.listing, obs.details) == Outcome.FAILED
     assert rows(path, "SELECT snapshot FROM courses") == saved
     assert len(calls) == (2 if error in ("500", "timeout") else 1)
