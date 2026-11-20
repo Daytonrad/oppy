@@ -107,10 +107,6 @@ Planned, not implemented.
 - Add notification channels beyond Telegram.
 - Save the HTML from checks that fail structural validation for diagnosis.
 
-## Independence note
-
-Oppy is my independent project. It has no official institutional affiliation, partnership or sponsorship. Senac Pará is the source of the public course information. I received written confirmation of access from the Senac administration.
-
 ## How this project was built
 
 I came up with Oppy and defined its goals, requirements, priorities and limits. I did not write the code by hand: the implementation was done through vibe coding, with AI tools working in separate roles.
