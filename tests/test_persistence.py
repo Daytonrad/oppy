@@ -13,7 +13,7 @@ class PersistenceTest(unittest.TestCase):
         with TemporaryDirectory() as directory:
             path = Path(directory) / "nested" / "test.db"
             env = {**os.environ, "BEACON_DB_PATH": str(path)}
-            command = [sys.executable, "-m", "opportunity_beacon"]
+            command = [sys.executable, "-m", "oppy"]
             subprocess.run(command, env=env, check=True)
             with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE probe (value TEXT)")

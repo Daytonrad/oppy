@@ -15,13 +15,13 @@ from urllib.request import Request
 
 import pytest
 
-from opportunity_beacon import runtime
-from opportunity_beacon.backup import backup
-from opportunity_beacon.core import record_collection
-from opportunity_beacon.http_client import RequestFailure, request
-from opportunity_beacon.outbox import DeliveryUnavailable, MemoryChannel, deliver_pending
-from opportunity_beacon.psg import Outcome
-from opportunity_beacon.telegram import Telegram, message
+from oppy import runtime
+from oppy.backup import backup
+from oppy.core import record_collection
+from oppy.http_client import RequestFailure, request
+from oppy.outbox import DeliveryUnavailable, MemoryChannel, deliver_pending
+from oppy.psg import Outcome
+from oppy.telegram import Telegram, message
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -266,8 +266,8 @@ def test_sigterm_and_status_without_credentials(tmp_path):
     code = """import sys
 from pathlib import Path
 from email.message import Message
-from opportunity_beacon import runtime
-from opportunity_beacon.__main__ import main
+from oppy import runtime
+from oppy.__main__ import main
 def offline(req, limit):
     names = {'selecao': 'listing', '948': 'detail-152', '377342740': 'detail-126'}
     name = names[req.full_url.rsplit('/', 1)[1]]
@@ -275,7 +275,7 @@ def offline(req, limit):
     headers['Content-Type'] = 'text/html'
     return Path('tests/fixtures', 'psg-' + name + '.html').read_bytes(), headers
 runtime.request = offline
-sys.argv = ['opportunity_beacon', 'run']
+sys.argv = ['oppy', 'run']
 main()"""
     proc = subprocess.Popen([sys.executable, "-c", code], env=env)
     try:
@@ -295,11 +295,11 @@ main()"""
         if proc.poll() is None:
             proc.kill()
             proc.wait()
-    run = subprocess.run([sys.executable, "-m", "opportunity_beacon", "status"],
+    run = subprocess.run([sys.executable, "-m", "oppy", "status"],
                          env=env, capture_output=True, text=True, check=True)
     assert "Telegram: not configured" in run.stdout and "Pending notifications: 1" in run.stdout
     target = tmp_path / "restore.sqlite3"
-    subprocess.run([sys.executable, "-m", "opportunity_beacon", "backup", str(target)], env=env, check=True)
+    subprocess.run([sys.executable, "-m", "oppy", "backup", str(target)], env=env, check=True)
     assert rows(target, "SELECT outcome FROM collections") == [("OK",)]
 
 
@@ -326,7 +326,7 @@ def test_slow_request_backoff_cap_and_normal_interval_after_success(tmp_path, mo
 
 @pytest.mark.parametrize("failure", ["listing", "detail", "transport", None])
 def test_smoke_stage_and_registration_counts(monkeypatch, capsys, failure):
-    from opportunity_beacon import __main__ as cli
+    from oppy import __main__ as cli
 
     last_detail = runtime.ORIGIN + "/psg/selecao/detalhar/santarem/5/377342740"
     def replay(url):
@@ -337,7 +337,7 @@ def test_smoke_stage_and_registration_counts(monkeypatch, capsys, failure):
         return html_for(url)
 
     monkeypatch.setattr(cli, "collect", lambda **kw: runtime.collect(replay, **kw))
-    monkeypatch.setattr(sys, "argv", ["opportunity_beacon", "smoke"])
+    monkeypatch.setattr(sys, "argv", ["oppy", "smoke"])
     if failure:
         with pytest.raises(SystemExit) as exc:
             cli.main()

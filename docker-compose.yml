@@ -1,9 +1,9 @@
 services:
-  beacon:
+  oppy:
     build:
       context: .
       network: none
-    command: ["python3", "-m", "opportunity_beacon", "run"]
+    command: ["python3", "-m", "oppy", "run"]
     restart: unless-stopped
     stop_grace_period: 25s
     environment:
@@ -19,3 +19,4 @@ services:
 
 volumes:
   beacon-data:
+    name: opportunity-beacon_beacon-data

@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from opportunity_beacon import initialize
-from opportunity_beacon.core import record_collection
-from opportunity_beacon.models import Document, Registration
-from opportunity_beacon.outbox import MemoryChannel, deliver_pending
-from opportunity_beacon.psg import Outcome, ParseResult, parse_detail, parse_listing
+from oppy import initialize
+from oppy.core import record_collection
+from oppy.models import Document, Registration
+from oppy.outbox import MemoryChannel, deliver_pending
+from oppy.psg import Outcome, ParseResult, parse_detail, parse_listing
 
 FIXTURES = Path(__file__).parent / "fixtures"
 NOW = datetime(2026, 10, 1, tzinfo=timezone.utc)
@@ -131,8 +131,8 @@ def test_delivery_crash_and_restart(tmp_path, samples):
     path = tmp_path / "state.db"
     collect(path, samples)
     env = {**os.environ, "BEACON_DB_PATH": str(path)}
-    code = """from opportunity_beacon import database_path
-from opportunity_beacon.outbox import deliver_pending, MemoryChannel
+    code = """from oppy import database_path
+from oppy.outbox import deliver_pending, MemoryChannel
 import os
 class Interrupted(MemoryChannel):
     def send(self, message):
@@ -141,8 +141,8 @@ class Interrupted(MemoryChannel):
 deliver_pending(database_path(), Interrupted())"""
     assert subprocess.run([sys.executable, "-c", code], env=env).returncode == 23
     assert query(path, "SELECT status, attempts FROM outbox") == [("pending", 1)]
-    retry = """from opportunity_beacon import database_path
-from opportunity_beacon.outbox import deliver_pending, MemoryChannel
+    retry = """from oppy import database_path
+from oppy.outbox import deliver_pending, MemoryChannel
 channel = MemoryChannel()
 deliver_pending(database_path(), channel)
 print([m['kind'] for m in channel.messages])"""
@@ -168,7 +168,7 @@ def test_failed_delivery_and_status(tmp_path, samples, raises):
     state, attempts, error = query(path, "SELECT status, attempts, last_error FROM outbox")[0]
     assert (state, attempts) == ("pending", 1)
     assert error == ("offline failure" if raises else "Channel did not confirm delivery")
-    run = subprocess.run([sys.executable, "-m", "opportunity_beacon", "status"],
+    run = subprocess.run([sys.executable, "-m", "oppy", "status"],
                          env={**os.environ, "BEACON_DB_PATH": str(path)}, check=True,
                          capture_output=True, text=True)
     for expected in ("Last successful collection: 2026-10-01", "Broken listing",
