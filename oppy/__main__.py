@@ -13,11 +13,15 @@ from . import database_path, initialize
 from .backup import backup
 from .models import Registration
 from .runtime import LISTING_URL, Outcome, collect, configuration, run_scheduler
+from .snapshots import snapshot_files
 from .summary import saved_summary
 from .telegram import Telegram, message
 
 
 def show_status(path):
+    snapshots = snapshot_files(path.parent / "failed-snapshots")
+    print(f"Failed HTML snapshots: {len(snapshots)}")
+    print(f"Latest snapshot: {snapshots[0].resolve() if snapshots else 'none'}")
     with closing(sqlite3.connect(path)) as db:
         for outcome, label in (("OK", "Last successful collection"), ("FAILED", "Last failed collection")):
             row = db.execute("""SELECT observed_at, reason FROM collections WHERE outcome=?
@@ -60,7 +64,7 @@ def main() -> None:
         else:
             print(message(event))
     elif args.command == "smoke":
-        observation = collect(retry=False)
+        observation = collect(retry=False, snapshot_dir=path.parent / "failed-snapshots")
         for result in (observation.listing, *observation.details):
             if result.status != Outcome.OK:
                 stage = "listagem" if observation.failed_url == LISTING_URL else "detalhe"

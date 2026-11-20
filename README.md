@@ -68,6 +68,18 @@ Run these commands from the repository root on Linux.
 
 For an existing installation, stop the previous Compose service before starting Oppy. Keep its volume when shutting down. Compose explicitly reuses `opportunity-beacon_beacon-data` across directory and project renames. Both the database and its WAL files stay under `/app/data`. Avoid `docker compose down -v`, which removes volumes.
 
+### Diagnose a changed page
+
+When the parser rejects a listing or detail page, Oppy keeps the response bytes and a JSON file with the request URL, UTC timestamp, HTTP status, parser outcome and reason. The ten newest pairs live in owner-only directories under `failed-snapshots/` beside the database. Transport failures and oversized responses do not produce snapshots.
+
+Run `docker compose exec oppy python -m oppy status` to find the latest HTML path. Copy its **parent directory** to retrieve both files (replace `<snapshot-id>` with the directory name reported in the path):
+
+```sh
+docker compose cp 'oppy:/app/data/failed-snapshots/<snapshot-id>' ./snapshot
+```
+
+Review the raw HTML and metadata for personal or sensitive information before sharing them publicly.
+
 ## Configuration
 
 I kept the `BEACON_` prefix for compatibility with existing `.env` files.
@@ -105,7 +117,6 @@ Planned, not implemented.
 
 - Support public listing sources beyond PSG.
 - Add notification channels beyond Telegram.
-- Save the HTML from checks that fail structural validation for diagnosis.
 
 ## How this project was built
 

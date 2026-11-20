@@ -13,6 +13,7 @@ from urllib.request import Request
 from . import initialize
 from .core import record_collection
 from .http_client import MAX_PAGE_BYTES, USER_AGENT, RequestFailure, request
+from .snapshots import save_snapshot
 from .outbox import deliver_pending
 from .psg import ORIGIN, Outcome, ParseResult, parse_detail, parse_listing
 
@@ -33,13 +34,19 @@ def configuration():
     return max(MIN_INTERVAL, minutes) * 60, threshold
 
 
+@dataclass
+class HtmlPage:
+    text: str
+    raw: bytes
+
+
 def fetch_page(url):
     req = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
     body, headers = request(req, MAX_PAGE_BYTES)
     if headers.get_content_type() not in ("text/html", "application/xhtml+xml"):
         raise RequestFailure("Expected an HTML response")
     try:
-        return body.decode(headers.get_content_charset() or "utf-8")
+        return HtmlPage(body.decode(headers.get_content_charset() or "utf-8"), body)
     except (UnicodeError, LookupError):
         raise RequestFailure("Invalid HTML encoding") from None
 
@@ -56,7 +63,7 @@ class Stopped(Exception):
     pass
 
 
-def collect(fetch=fetch_page, *, stop=None, retry=True):
+def collect(fetch=fetch_page, *, stop=None, retry=True, snapshot_dir=None):
     stop = stop or Event()
 
     def page(url):
@@ -71,15 +78,25 @@ def collect(fetch=fetch_page, *, stop=None, retry=True):
             raise Stopped
         return fetch(url)
 
+    def parse_page(url, kind, parser, *args):
+        response = page(url)
+        # Injected fixture transports can supply decoded text directly.
+        if isinstance(response, str):
+            response = HtmlPage(response, response.encode())
+        result = parser(response.text, *args)
+        if result.status != Outcome.OK:
+            save_snapshot(snapshot_dir, kind, url, response.raw, result)
+        return result
+
     url = LISTING_URL
     try:
-        listing = parse_listing(page(url))
+        listing = parse_page(url, "listing", parse_listing)
         if listing.status != Outcome.OK:
             return Observation(listing, failed_url=url)
         details = []
         for selection in listing.value or ():
             url = selection.url
-            result = parse_detail(page(url), selection)
+            result = parse_page(url, "detail", parse_detail, selection)
             details.append(result)
             if result.status != Outcome.OK:
                 return Observation(listing, tuple(details), failed_url=url)
@@ -100,7 +117,7 @@ def run_scheduler(path, channel, stop, *, interval, threshold, fetch=fetch_page)
             return
         while not stop.is_set():
             try:
-                obs = collect(fetch, stop=stop)
+                obs = collect(fetch, stop=stop, snapshot_dir=path.parent / "failed-snapshots")
             except Stopped:
                 return
             gate = time.time() + obs.retry_after if obs.retry_after else None
