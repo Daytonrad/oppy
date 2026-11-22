@@ -105,6 +105,16 @@ def collect(fetch=fetch_page, *, stop=None, retry=True, snapshot_dir=None):
         return Observation(ParseResult(Outcome.FAILED, str(error)), retry_after=error.retry_after, failed_url=url)
 
 
+def _wait_for_next_cycle(stop, delay):
+    """Wait interruptibly even when Retry-After exceeds the platform timeout."""
+    until = time.monotonic() + delay
+    while delay > 0 and not stop.is_set():
+        if stop.wait(min(delay, 86400)):
+            return True
+        delay = until - time.monotonic()
+    return stop.is_set()
+
+
 def run_scheduler(path, channel, stop, *, interval, threshold, fetch=fetch_page):
     initialize(path)
     with open(str(path.resolve()) + ".lock", "a") as lock, closing(sqlite3.connect(path)) as db:
@@ -113,7 +123,7 @@ def run_scheduler(path, channel, stop, *, interval, threshold, fetch=fetch_page)
         except BlockingIOError:
             raise RuntimeError("A scheduler already owns this database") from None
         previous = db.execute("SELECT retry_not_before FROM collections ORDER BY id DESC LIMIT 1").fetchone()
-        if previous and previous[0] and stop.wait(max(0, previous[0] - time.time())):
+        if previous and previous[0] and _wait_for_next_cycle(stop, previous[0] - time.time()):
             return
         while not stop.is_set():
             try:
@@ -136,9 +146,5 @@ def run_scheduler(path, channel, stop, *, interval, threshold, fetch=fetch_page)
                 deliver_pending(path, channel, should_stop=stop.is_set)
             if gate:
                 delay = max(delay, gate - time.time())
-            # Wait in bounded pieces for very long server-requested pauses.
-            until = time.monotonic() + delay
-            while delay > 0 and not stop.is_set():
-                if stop.wait(min(delay, 86400)):
-                    return
-                delay = until - time.monotonic()
+            if _wait_for_next_cycle(stop, delay):
+                return

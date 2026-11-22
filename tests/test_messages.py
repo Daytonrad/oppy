@@ -121,5 +121,5 @@ def test_delayed_baseline_labels_updated_snapshot(tmp_path):
     channel = MemoryChannel()
     deliver_pending(path, channel)
     baseline = message(channel.messages[0])
-    assert "Detalhes do estado atualizado em 02/10/2026" in baseline
+    assert "Detalhes atualizados em 02/10/2026" in baseline
     assert "Fim do curso: 18/12/2026" in baseline
