@@ -59,3 +59,19 @@ def test_retention_and_write_failure(tmp_path, caplog):
     failed_write = runtime.collect(lambda _: markup, snapshot_dir=blocked)
     assert failed_write.listing == result.listing
     assert "Could not maintain failed HTML snapshot" in caplog.text
+
+
+def test_only_completed_oppy_pairs_participate_in_retention(tmp_path):
+    folder = tmp_path / "failed-snapshots"
+    preserved = []
+    for name in ("2026-manual", "20260101T120000000000Z-detail-" + "a" * 32):
+        pair = folder / name
+        pair.mkdir(parents=True)
+        html = pair / f"{name}.html"
+        html.write_text("keep")
+        preserved.append(html)
+    assert snapshot_files(folder) == []
+    for _ in range(11):
+        runtime.collect(lambda _: "<main></main>", snapshot_dir=folder)
+    assert len(snapshot_files(folder)) == 10
+    assert all(html.read_text() == "keep" for html in preserved)

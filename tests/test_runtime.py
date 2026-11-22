@@ -164,11 +164,12 @@ def test_scheduler_backoff_and_restart_health(tmp_path, monkeypatch):
     assert [m["kind"] for m in channel.messages] == ["monitoring_failure", "baseline", "monitoring_recovered"]
 
 
-def test_429_header_and_restart_pause(tmp_path):
+@pytest.mark.parametrize("seconds", [9000, 10**15])
+def test_429_header_and_restart_pause(tmp_path, seconds):
     path = tmp_path / "db"
     def respond(h):
         h.send_response(429)
-        h.send_header("Retry-After", "9000")
+        h.send_header("Retry-After", str(seconds))
         h.end_headers()
     with server(respond) as url:
         runtime.run_scheduler(path, None, Stop(1), interval=600, threshold=1,
@@ -176,7 +177,8 @@ def test_429_header_and_restart_pause(tmp_path):
     stop = Stop(1)
     runtime.run_scheduler(path, None, stop, interval=600, threshold=1,
                           fetch=lambda _: pytest.fail("Retry-After not honored after restart"))
-    assert 8990 <= stop.delays[0] <= 9000
+    expected = min(seconds, 86400)
+    assert expected - 10 <= stop.delays[0] <= expected
 
 
 def test_immediate_single_scheduler_and_minimum_interval(tmp_path, monkeypatch, caplog):
@@ -254,6 +256,7 @@ def test_plain_text_fields():
                     "url": "https://example.invalid/course", "after": {
                         "registration": "open", "registration_mode": "inscrição presencial",
                         "registration_end": "2026-11-19T18:00:00-03:00"}})
+    assert "Modalidade da inscrição: presencial" in body
     assert "Curso: A < B & C" in body
     assert "19/11/2026 às 18:00" in body
     assert "Inscrições abertas" in body
@@ -348,6 +351,6 @@ def test_smoke_stage_and_registration_counts(monkeypatch, capsys, failure):
     else:
         cli.main()
         output = capsys.readouterr().out
-        assert "Santarém: 2 seleção(ões)" in output
-        assert "Seleção 152/2026: abertas: 0, encerradas: 0, vagas preenchidas: 0, desconhecida: 1" in output
-        assert "Total: 4 curso(s) · abertas: 1, encerradas: 1, vagas preenchidas: 1, desconhecida: 1" in output
+        assert "Seleções em Santarém: 2" in output
+        assert "Seleção 152/2026: inscrições abertas: 0, inscrições encerradas: 0, vagas preenchidas: 0, situação desconhecida: 1" in output
+        assert "Total de cursos: 4 · inscrições abertas: 1, inscrições encerradas: 1, vagas preenchidas: 1, situação desconhecida: 1" in output

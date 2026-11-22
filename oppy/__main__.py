@@ -69,16 +69,16 @@ def main() -> None:
             if result.status != Outcome.OK:
                 stage = "listagem" if observation.failed_url == LISTING_URL else "detalhe"
                 parser.exit(1, f"{result.status} · {stage} · {observation.failed_url}: {result.reason}\n")
-        labels = {Registration.OPEN: "abertas", Registration.CLOSED: "encerradas",
-                  Registration.FULL: "vagas preenchidas", Registration.UNKNOWN: "desconhecida"}
+        labels = {Registration.OPEN: "inscrições abertas", Registration.CLOSED: "inscrições encerradas",
+                  Registration.FULL: "vagas preenchidas", Registration.UNKNOWN: "situação desconhecida"}
         totals = Counter()
-        print(f"Santarém: {len(observation.details)} seleção(ões)")
+        print(f"Seleções em Santarém: {len(observation.details)}")
         for selection, result in zip(observation.listing.value, observation.details):
             counts = Counter(course.registration for course in result.value.courses)
             totals.update(counts)
             print(f"Seleção {selection.notice or selection.url}: " +
                   ", ".join(f"{name}: {counts[state]}" for state, name in labels.items()))
-        print(f"Total: {totals.total()} curso(s) · " +
+        print(f"Total de cursos: {totals.total()} · " +
               ", ".join(f"{name}: {totals[state]}" for state, name in labels.items()))
     elif args.command == "smoke-telegram":
         channel = Telegram.configured()

@@ -42,6 +42,8 @@ def format_date(value):
 def course_block(course, notice, url, *, category=None, changes=None):
     labels = STATES | {"future": "Inscrições futuras"}
     mode = course.get("registration_mode")
+    if mode and mode.casefold() in ("inscrição online", "inscrição presencial"):
+        mode = mode.split()[-1].lower()
     fields = [("Curso", course.get("title")), ("Seleção", notice),
               ("Situação", labels.get(category or course.get("registration"))),
               ("Modalidade da inscrição", mode), ("Local", course.get("venue"))]
@@ -69,7 +71,7 @@ def blocks(event):
         lines.append("Fonte: Senac Pará PSG · Santarém")
     if event.get("detail_time"):
         stamp = datetime.fromisoformat(event["detail_time"])
-        lines.append("Detalhes do estado atualizado em " + stamp.strftime("%d/%m/%Y às %H:%M %z"))
+        lines.append("Detalhes atualizados em " + stamp.strftime("%d/%m/%Y às %H:%M %z"))
     after = event.get("after")
     data = after if isinstance(after, dict) else {}
     summary = event.get("summary")

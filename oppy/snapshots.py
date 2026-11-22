@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,8 +12,19 @@ from uuid import uuid4
 from .http_client import MAX_PAGE_BYTES
 
 
+SNAPSHOT_NAME = re.compile(r"[0-9]{8}T[0-9]{12}Z-(?:listing|detail)-[0-9a-f]{32}")
+
+
 def snapshot_files(directory):
-    return sorted(directory.glob("20*-*/20*-*.html"), reverse=True)
+    pairs = []
+    for folder in directory.glob("*"):
+        if not SNAPSHOT_NAME.fullmatch(folder.name) or folder.is_symlink() or not folder.is_dir():
+            continue
+        html = folder / f"{folder.name}.html"
+        meta = html.with_suffix(".json")
+        if all(not path.is_symlink() and path.is_file() for path in (html, meta)):
+            pairs.append(html)
+    return sorted(pairs, reverse=True)
 
 
 def save_snapshot(directory, kind, url, body, result):
