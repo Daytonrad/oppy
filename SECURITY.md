@@ -1,5 +1,7 @@
 # Security Policy
 
+[Português (Brasil)](pt-BR/SEGURANCA.md)
+
 ## Scope
 
 Oppy is a personal, self-hosted opportunity monitor. The current development branch is `main`; there is no promised support period, patch schedule, security response SLA or bug bounty.
