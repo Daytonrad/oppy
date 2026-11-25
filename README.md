@@ -122,6 +122,7 @@ I kept the `BEACON_` prefix for compatibility with existing `.env` files.
 | `BEACON_DB_PATH` | SQLite path. Defaults to `data/beacon.sqlite3`. Keep it under the mounted data directory in Compose. |
 | `BEACON_INTERVAL_MINUTES` | Minutes to wait after a completed cycle. Default 30, minimum 10; use only a frequency permitted by the source. |
 | `BEACON_FAILURE_ALERT_AFTER` | Consecutive failed or inconclusive checks before one incident alert. Default 3. |
+| `BEACON_NOTIFICATION_LANGUAGE` | `pt-BR` (default) or `en` (English). Applies to Telegram and the local `summary` preview. Unrecognized values fall back to Portuguese. Course titles, venues and document labels keep their source wording. |
 | `BEACON_TELEGRAM_TOKEN` | Bot token from BotFather. Empty by default. |
 | `BEACON_TELEGRAM_CHAT_ID` | Destination chat. If either Telegram setting is empty, notifications remain pending. |
 | `BEACON_BACKUP_PATH` | New destination file. Defaults to a timestamped file beside the database. |
@@ -130,7 +131,7 @@ I kept the `BEACON_` prefix for compatibility with existing `.env` files.
 
 Oppy checks listings only while the machine and service are running. A short registration window can pass between checks. At-least-once delivery can produce a duplicate if the process stops after Telegram accepts a message and before SQLite records success.
 
-The current Telegram notifications and some CLI output are in Brazilian Portuguese. Oppy is not an application submission tool. It does not inspect PDF contents; document links and labels are tracked, so replacements at an unchanged URL with an unchanged label may go undetected.
+Oppy is not an application submission tool. It does not inspect PDF contents; document links and labels are tracked, so replacements at an unchanged URL with an unchanged label may go undetected.
 
 In-person registration can have an unknown status. Extraction depends on the portal’s HTML. A complete cycle requests the listing once and follows one detail link per Santarém selection, with at most one retry for eligible transient errors.
 
@@ -152,7 +153,7 @@ Possible future work, not implemented or scheduled:
 
 - Support additional public listing sources where automated access is permitted.
 - Add notification channels beyond Telegram.
-- Explore read-only exports and configurable notification languages.
+- Explore read-only exports.
 
 See [open issues](https://github.com/kayo-willian/oppy/issues) for scoped proposals. Suggestions and pull requests are welcome, but a proposal is not a commitment to implementation.
 
