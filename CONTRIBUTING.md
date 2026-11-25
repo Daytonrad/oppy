@@ -8,6 +8,8 @@ Oppy monitors public opportunity listings and sends notifications. Its only impl
 
 Useful contributions include reproducible bugs, fixture-based regression tests, accessibility and notification formatting, installation documentation, read-only exports and well-scoped source proposals.
 
+See the [GitHub contributors list](https://github.com/kayo-willian/oppy/graphs/contributors) for commit credits.
+
 ## Getting started
 
 Use a Linux development environment with Git and Python 3.11 or newer. The runtime uses the standard library. The offline tests need pytest, but do not need Docker, a Telegram account, credentials or live access to the portal.
