@@ -56,7 +56,8 @@ def test_saved_summary_and_initial_event_match(tmp_path):
     assert dump(path) == before
 
 
-def test_numbered_pages_keep_whole_blocks_and_order(tmp_path):
+@pytest.mark.parametrize("language", ["pt-BR", "en"])
+def test_numbered_pages_keep_whole_blocks_and_order(tmp_path, language):
     path = tmp_path / "db"
     seed(path)
     event = saved_summary(path)
@@ -64,7 +65,7 @@ def test_numbered_pages_keep_whole_blocks_and_order(tmp_path):
     original = summary["eligible"]
     summary["eligible"] = [dict(original[i % 2], title=f"Turma {i:03} 🗓️ " + "á" * 47) for i in range(140)]
     summary["counts"].update(open=70, future=70)
-    summary_parts = pages(event)
+    summary_parts = pages(event, language)
     assert len(summary_parts) >= 10
     bodies = []
     for i, part in enumerate(summary_parts, 1):
@@ -72,16 +73,16 @@ def test_numbered_pages_keep_whole_blocks_and_order(tmp_path):
         assert prefix == f"{i}/{len(summary_parts)}"
         assert len(part.encode("utf-16-le")) <= 8192
         bodies.extend(body.split("\n\n"))
-    assert bodies == blocks(event)
+    assert bodies == blocks(event, language)
     sent = []
     def transport(req, limit):
         sent.append(json.loads(req.data)["text"])
         return b'{"ok":true,"result":{"message_id":1}}', {}
-    assert Telegram("123:fake", "fixture", transport=transport).send(event)
+    assert Telegram("123:fake", "fixture", transport=transport, language=language).send(event)
     assert sent == summary_parts
     summary["eligible"][0]["title"] = "x" * 4096
     with pytest.raises(DeliveryUnavailable, match="bloco"):
-        pages(event)
+        pages(event, language)
 
 
 def test_date_change_and_document_blocks(tmp_path):
@@ -123,3 +124,57 @@ def test_delayed_baseline_labels_updated_snapshot(tmp_path):
     baseline = message(channel.messages[0])
     assert "Detalhes atualizados em 02/10/2026" in baseline
     assert "Fim do curso: 18/12/2026" in baseline
+
+
+@pytest.mark.parametrize("kind, heading", [
+    ("registration_announced", "Upcoming registration"),
+    ("registration_opened", "Registration open"),
+    ("registration_reopened", "Registration reopened"),
+    ("registration_closed", "Registration closed"),
+    ("places_filled", "All places filled"),
+])
+def test_registration_headings_keep_source_fields(kind, heading):
+    event = dict(kind=kind, title="Curso de Inglês", notice="42/2026",
+                 course_state={"venue": "Casa Azul", "registration_mode": "Inscrição presencial"})
+    text = message(event, "en")
+    assert heading in text.splitlines()[0]
+    assert "Course: Curso de Inglês" in text and "Venue: Casa Azul" in text
+    assert "Registration method: in person" in text
+
+
+def test_english_incidents_and_source_document():
+    failure = dict(kind="monitoring_failure", after={"consecutive": 3, "reason": "HTTP timeout"})
+    assert "Coletas consecutivas sem sucesso: 3." in message(failure)
+    assert "Consecutive unsuccessful collections: 3." in message(failure, "en")
+    assert "Reason: Request timed out" in message(failure, "en")
+    assert "Monitoring recovered" in message({"kind": "monitoring_recovered"}, "en")
+    doc = dict(kind="amendment", after={"label": "Retificação nº 5", "url": "https://example.invalid/5"})
+    assert "Retificação nº 5\nDocument: https://example.invalid/5" in message(doc, "en")
+
+
+def test_old_pending_baseline_keeps_original_course_title():
+    event = dict(kind="baseline", after={"selections": 1, "courses": 1, "open_courses": ["Seleção"]})
+    assert "Curso com inscrições abertas: Seleção" in message(event)
+    assert "Course open for registration: Seleção" in message(event, "en")
+
+
+def test_configured_language_at_delivery(tmp_path, monkeypatch):
+    path = tmp_path / "db"
+    seed(path)
+    monkeypatch.setenv("BEACON_NOTIFICATION_LANGUAGE", "en")
+    monkeypatch.setenv("BEACON_TELEGRAM_TOKEN", "123:fixture")
+    monkeypatch.setenv("BEACON_TELEGRAM_CHAT_ID", "fixture")
+    sent = []
+
+    monkeypatch.setattr(Telegram, "_send_page", lambda self, text: sent.append(text))
+    assert deliver_pending(path, Telegram.configured()) == 1
+    assert "Initial summary · Santarém" in sent[0]
+    assert "Selections: 2 · Courses: 4" in sent[0]
+    assert "Open: 1 · Upcoming: 1 · Closed: 1" in sent[0]
+    assert "Venue: Casa Azul" in sent[0]
+    assert "2026-11-04 at 09:00" in sent[0]
+    assert deliver_pending(path, Telegram.configured()) == 0
+
+    monkeypatch.setenv("BEACON_DB_PATH", str(path))
+    preview = subprocess.check_output([sys.executable, "-m", "oppy", "summary"], text=True)
+    assert preview.rstrip() == message(saved_summary(path), "en")

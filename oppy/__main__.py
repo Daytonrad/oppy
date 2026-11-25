@@ -15,7 +15,7 @@ from .models import Registration
 from .runtime import LISTING_URL, Outcome, collect, configuration, run_scheduler
 from .snapshots import snapshot_files
 from .summary import saved_summary
-from .telegram import Telegram, message
+from .telegram import Telegram, configured_language, message
 
 
 def show_status(path):
@@ -62,7 +62,7 @@ def main() -> None:
                 parser.exit(1, "Telegram credentials are missing.\n")
             channel.send(event)
         else:
-            print(message(event))
+            print(message(event, configured_language()))
     elif args.command == "smoke":
         observation = collect(retry=False, snapshot_dir=path.parent / "failed-snapshots")
         for result in (observation.listing, *observation.details):

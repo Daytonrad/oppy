@@ -8,6 +8,7 @@ from datetime import date, datetime
 from urllib.request import Request
 
 from .http_client import RequestFailure, request
+from .notification_text import ENGLISH
 from .outbox import DeliveryUnavailable
 from .runtime import LISTING_URL
 
@@ -33,79 +34,94 @@ DATES = {"registration_start": "Início das inscrições", "registration_end": "
 STATES = {"open": "Inscrições abertas", "closed": "Inscrições encerradas", "full": "Vagas preenchidas"}
 
 
-def format_date(value):
+def configured_language():
+    return os.getenv("BEACON_NOTIFICATION_LANGUAGE", "").strip().lower() or "pt-br"
+
+
+def _text(value, language):
+    return ENGLISH.get(value, value) if language == "en" else value
+
+
+def format_date(value, language="pt-br"):
     if "T" in value:
-        return datetime.fromisoformat(value).strftime("%d/%m/%Y às %H:%M")
-    return date.fromisoformat(value).strftime("%d/%m/%Y")
+        return datetime.fromisoformat(value).strftime(_text("%d/%m/%Y às %H:%M", language))
+    return date.fromisoformat(value).strftime(_text("%d/%m/%Y", language))
 
 
-def course_block(course, notice, url, *, category=None, changes=None):
+def course_block(course, notice, url, *, category=None, changes=None, language="pt-br"):
     labels = STATES | {"future": "Inscrições futuras"}
     mode = course.get("registration_mode")
     if mode and mode.casefold() in ("inscrição online", "inscrição presencial"):
-        mode = mode.split()[-1].lower()
+        mode = _text(mode.split()[-1].lower(), language)
     fields = [("Curso", course.get("title")), ("Seleção", notice),
-              ("Situação", labels.get(category or course.get("registration"))),
+              ("Situação", _text(labels.get(category or course.get("registration")), language)),
               ("Modalidade da inscrição", mode), ("Local", course.get("venue"))]
+    fields = [(_text(label, language), value) for label, value in fields]
     for key, label in DATES.items():
+        label = _text(label, language)
         if changes is None:
             value = course.get(key)
             if value:
-                fields.append((label, format_date(value)))
+                fields.append((label, format_date(value, language)))
         elif key in changes[1]:
             old, new = changes[0].get(key), changes[1][key]
             if old != new:
-                values = [format_date(v) for v in (old, new) if v]
+                values = [format_date(v, language) for v in (old, new) if v]
                 if values:
                     if old and not new:
-                        label += " (valor anterior)"
+                        label += _text(" (valor anterior)", language)
                     fields.append((label, " → ".join(values)))
-    fields.append(("Página da seleção", url))
+    fields.append((_text("Página da seleção", language), url))
     return "\n".join(f"{label}: {value}" for label, value in fields if value)
 
 
-def blocks(event):
+def blocks(event, language="pt-br"):
+    def text(value):
+        return _text(value, language)
+
     kind = event["kind"]
-    lines = [TITLES[kind]]
+    lines = [text(TITLES[kind])]
     if kind != "test":
-        lines.append("Fonte: Senac Pará PSG · Santarém")
+        lines.append(text("Fonte: Senac Pará PSG · Santarém"))
     if event.get("detail_time"):
         stamp = datetime.fromisoformat(event["detail_time"])
-        lines.append("Detalhes atualizados em " + stamp.strftime("%d/%m/%Y às %H:%M %z"))
+        lines.append(text("Detalhes atualizados em ") + stamp.strftime(text("%d/%m/%Y às %H:%M") + " %z"))
     after = event.get("after")
     data = after if isinstance(after, dict) else {}
     summary = event.get("summary")
     if summary is not None:
         counts = summary["counts"]
-        lines.append(f"Seleções: {summary['selections']} · Cursos: {sum(counts.values())}")
-        lines.append(f"Abertas: {counts['open']} · Futuras: {counts['future']} · Encerradas: {counts['closed']}")
-        lines.append(f"Vagas preenchidas: {counts['full']} · Desconhecidas: {counts['unknown']}")
+        lines.append(text("Seleções: {} · Cursos: {}").format(summary["selections"], sum(counts.values())))
+        lines.append(text("Abertas: {} · Futuras: {} · Encerradas: {}").format(
+            counts["open"], counts["future"], counts["closed"]))
+        lines.append(text("Vagas preenchidas: {} · Desconhecidas: {}").format(counts["full"], counts["unknown"]))
         return ["\n".join(lines),
-                *(course_block(c, c["notice"], c["url"], category=c["category"]) for c in summary["eligible"]),
-                "Listagem geral: " + LISTING_URL]
+                *(course_block(c, c["notice"], c["url"], category=c["category"], language=language)
+                  for c in summary["eligible"]),
+                text("Listagem geral: ") + LISTING_URL]
     if kind == "baseline":
         # Old pending baselines only stored totals and open titles.
-        lines.append(f"Seleções: {data['selections']} · Cursos: {data['courses']}")
-        return ["\n".join(lines), *("Curso com inscrições abertas: " + title for title in data["open_courses"]),
-                "Listagem geral: " + LISTING_URL]
+        lines.append(text("Seleções: {} · Cursos: {}").format(data["selections"], data["courses"]))
+        return ["\n".join(lines), *(text("Curso com inscrições abertas: ") + title for title in data["open_courses"]),
+                text("Listagem geral: ") + LISTING_URL]
     if kind == "monitoring_failure":
-        lines.append(f"Coletas consecutivas sem sucesso: {data['consecutive']}.")
+        lines.append(text("Coletas consecutivas sem sucesso: {}.").format(data["consecutive"]))
         reason = data["reason"]
         if reason.startswith("Unresolved course identity:"):
-            reason = "Identidade de curso ambígua: " + reason.partition(":")[2].strip()
+            reason = text("Identidade de curso ambígua: ") + reason.partition(":")[2].strip()
         elif reason.startswith("HTTP ") and reason[5:].isdigit():
-            reason = "Resposta " + reason
+            reason = text("Resposta ") + reason
         else:
-            reason = {"HTTP timeout": "Tempo limite da consulta excedido",
-                      "Truncated HTTP response": "Resposta HTTP incompleta",
-                      "HTTP connection failed": "Falha na conexão",
-                      "Santarém panel absent": "Painel de Santarém ausente"}.get(
-                          reason, "Coleta sem resultado confiável. Consulte o status local.")
-        lines.append(f"Motivo: {reason}")
+            reasons = {"HTTP timeout": "Tempo limite da consulta excedido",
+                       "Truncated HTTP response": "Resposta HTTP incompleta",
+                       "HTTP connection failed": "Falha na conexão",
+                       "Santarém panel absent": "Painel de Santarém ausente"}
+            reason = text(reasons.get(reason, "Coleta sem resultado confiável. Consulte o status local."))
+        lines.append(text("Motivo: {}").format(reason))
     elif kind in ("new_document", "amendment") and data.get("label"):
         lines.append(data["label"])
     if kind in ("new_document", "amendment") and data.get("url"):
-        lines.append("Documento: " + data["url"])
+        lines.append(text("Documento: ") + data["url"])
     states = event.get("selection_courses")
     if states is None:
         state = event.get("course_state") or (data if kind in ("new_course", "new_selection") else {})
@@ -116,16 +132,17 @@ def blocks(event):
             state["registration_start"] = after
         states = [state]
     changes = (event.get("before") or {}, data) if kind == "dates_changed" else None
-    parts = [course_block(c, event.get("notice"), event.get("url"), changes=changes) for c in states]
+    parts = [course_block(c, event.get("notice"), event.get("url"), changes=changes, language=language)
+             for c in states]
     return ["\n".join(lines), *(part for part in parts if part)]
 
 
-def message(event):
-    return "\n\n".join(blocks(event))
+def message(event, language="pt-br"):
+    return "\n\n".join(blocks(event, language))
 
 
-def pages(event):
-    parts = blocks(event)
+def pages(event, language="pt-br"):
+    parts = blocks(event, language)
     def size(text):
         return len(text.encode("utf-16-le")) // 2
 
@@ -153,24 +170,25 @@ def pages(event):
 
 
 class Telegram:
-    def __init__(self, token, chat, *, transport=request):
+    def __init__(self, token, chat, *, transport=request, language="pt-br"):
         self._token = token
         self._chat = chat
         self._transport = transport
+        self._language = language
         self.resume_at = 0
 
     @classmethod
     def configured(cls):
         token = os.getenv("BEACON_TELEGRAM_TOKEN", "").strip()
         chat = os.getenv("BEACON_TELEGRAM_CHAT_ID", "").strip()
-        return cls(token, chat) if token and chat else None
+        return cls(token, chat, language=configured_language()) if token and chat else None
 
     def send(self, event):
         if not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", self._token):
             raise DeliveryUnavailable("Configuração de credencial inválida")
         if time.monotonic() < self.resume_at:
             raise DeliveryUnavailable("Telegram solicitou uma pausa")
-        for text in pages(event):
+        for text in pages(event, self._language):
             self._send_page(text)
         return True
 
