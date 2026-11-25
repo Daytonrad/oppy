@@ -162,15 +162,15 @@ Consulte as [issues abertas](https://github.com/kayo-willian/oppy/issues) para p
 Você pode ajudar com documentação, testes de regressão offline, feedback sobre implantação, exportação de dados, formatação de notificações ou propostas de novas fontes. Não é necessário ter um token do Telegram, um bot em execução ou acesso ao portal PSG para contribuir.
 
 1. [Faça um fork do repositório](https://github.com/kayo-willian/oppy/fork) e crie uma branch específica a partir da `main` do projeto original.
-2. Leia [CONTRIBUTING.md](CONTRIBUTING.md) e [AGENTS.md](../AGENTS.md).
+2. Leia [CONTRIBUICAO.md](CONTRIBUICAO.md) e [AGENTS.md](../AGENTS.md).
 3. Execute os testes offline, faça a alteração e adicione testes de regressão relevantes.
 4. Abra um pull request para `main` e descreva a validação efetivamente realizada e suas limitações.
 
 | Recurso | Finalidade |
 |---|---|
-| [Guia de contribuição](CONTRIBUTING.md) | Desenvolvimento, revisão e testes seguros |
-| [Código de conduta](CODE_OF_CONDUCT.md) | Participação respeitosa |
-| [Política de segurança](SECURITY.md) | Opções de comunicação privada de vulnerabilidades |
+| [Guia de contribuição](CONTRIBUICAO.md) | Desenvolvimento, revisão e testes seguros |
+| [Código de conduta](CODIGO_DE_CONDUTA.md) | Participação respeitosa |
+| [Política de segurança](SEGURANCA.md) | Opções de comunicação privada de vulnerabilidades |
 | [Issues](https://github.com/kayo-willian/oppy/issues) | Relatos de bugs e propostas de funcionalidades; inglês e português brasileiro são bem-vindos |
 | [Pull requests](https://github.com/kayo-willian/oppy/pulls) | Alterações propostas e revisões |
 | [Histórico](../CHANGELOG.md) | Alterações significativas integradas |

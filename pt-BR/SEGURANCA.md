@@ -18,4 +18,4 @@ Inclua o commit afetado, ambiente, limite esperado, comportamento observado, imp
 
 Não compartilhe arquivos `.env` reais, tokens do Telegram, IDs de conversas, bancos, backups, HTML bruto de diagnóstico ou logs sem sanitização. Se um token do Telegram for exposto, revogue-o pelo BotFather e substitua-o localmente.
 
-Dê uma oportunidade razoável de investigação antes de publicar detalhes exploráveis. Bugs comuns não sensíveis devem ser relatados em Issues. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para testes seguros.
+Dê uma oportunidade razoável de investigação antes de publicar detalhes exploráveis. Bugs comuns não sensíveis devem ser relatados em Issues. Consulte [CONTRIBUICAO.md](CONTRIBUICAO.md) para testes seguros.

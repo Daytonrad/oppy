@@ -1,6 +1,6 @@
 # Contributing to Oppy
 
-[Português (Brasil)](pt-BR/CONTRIBUTING.md)
+[Português (Brasil)](pt-BR/CONTRIBUICAO.md)
 
 Contributions are welcome, whether you are learning Python, Linux or Docker or already maintain monitoring software. Oppy is a small, independent self-hosted project. You can fork it, report a problem, improve the documentation or submit a focused pull request. These guidelines apply to upstream contributions, not independent forks under the [MIT license](LICENSE).
 
