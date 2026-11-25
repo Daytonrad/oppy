@@ -12,7 +12,7 @@ Oppy is a self-hosted monitor that checks public opportunity listings at regular
 [![Tests](https://img.shields.io/github/actions/workflow/status/kayo-willian/oppy/tests.yml?branch=main&label=tests&style=flat)](https://github.com/kayo-willian/oppy/actions/workflows/tests.yml)
 ![Built with vibe coding](https://img.shields.io/badge/built%20with-vibe%20coding-c87824?style=flat)
 
-[Português (Brasil)](README.pt-BR.md) · [Quick start](#quick-start) · [Configuration](#configuration) · [Contributing](#contributing) · [Changelog](CHANGELOG.md)
+[Português (Brasil)](pt-BR/README.md) · [Quick start](#quick-start) · [Configuration](#configuration) · [Contributing](#contributing) · [Changelog](CHANGELOG.md)
 
 Oppy is an independent personal project released under the MIT license. Senac Pará is an information source, not a partner or maintainer. Contributions are welcome; development and review times are not guaranteed.
 
@@ -175,7 +175,7 @@ You can help with documentation, offline regression tests, deployment feedback, 
 | [Pull requests](https://github.com/kayo-willian/oppy/pulls) | Proposed changes and reviews |
 | [Changelog](CHANGELOG.md) | Significant merged changes |
 
-The README is available in English and Brazilian Portuguese. Internal documentation, code, commits and pull requests remain in English. Project-created public issues and issue templates use English and Brazilian Portuguese; contributors can reply or report in either language. Independent forks remain free to evolve under MIT.
+The README, contribution guide, code of conduct and security policy are available in English and Brazilian Portuguese in [pt-BR/](pt-BR/README.md). Internal technical documentation, code, commits and pull requests remain in English. Project-created public issues and issue templates use English and Brazilian Portuguese; contributors can reply or report in either language. Independent forks remain free to evolve under MIT.
 
 ## How this project was built
 

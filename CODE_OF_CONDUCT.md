@@ -1,5 +1,7 @@
 # Code of Conduct
 
+[Português (Brasil)](pt-BR/CODE_OF_CONDUCT.md)
+
 Oppy welcomes contributors of different backgrounds and experience levels. Keep project discussions respectful, accessible and focused on the work.
 
 ## Expected behavior

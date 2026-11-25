@@ -1,10 +1,10 @@
-![Placa OPPY em pixel art](assets/oppy-cover.svg)
+![Placa OPPY em pixel art](../assets/oppy-cover.svg)
 
 # Oppy
 
 Oppy é um monitor auto-hospedado que consulta listas públicas de oportunidades em intervalos regulares e envia alertas pelo Telegram quando aparecem novas oportunidades ou mudanças. Atualmente, oferece suporte a uma fonte: o Programa Senac de Gratuidade (PSG) do Senac Pará em Santarém.
 
-[![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
+[![MIT license](https://img.shields.io/badge/license-MIT-blue?style=flat)](../LICENSE)
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat)
 ![Docker Compose](https://img.shields.io/badge/Docker-Compose-2468a2?style=flat)
 ![SQLite](https://img.shields.io/badge/storage-SQLite-486477?style=flat)
@@ -12,7 +12,7 @@ Oppy é um monitor auto-hospedado que consulta listas públicas de oportunidades
 [![Tests](https://img.shields.io/github/actions/workflow/status/kayo-willian/oppy/tests.yml?branch=main&label=tests&style=flat)](https://github.com/kayo-willian/oppy/actions/workflows/tests.yml)
 ![Built with vibe coding](https://img.shields.io/badge/built%20with-vibe%20coding-c87824?style=flat)
 
-[English](README.md) · [Início rápido](#início-rápido) · [Configuração](#configuração) · [Contribuição](#contribuição) · [Histórico](CHANGELOG.md)
+[English](../README.md) · [Início rápido](#início-rápido) · [Configuração](#configuração) · [Contribuição](#contribuição) · [Histórico](../CHANGELOG.md)
 
 Oppy é um projeto pessoal independente, distribuído sob a licença MIT. O Senac Pará é uma fonte de informações, não um parceiro nem mantenedor. Contribuições são bem-vindas; não há garantia de prazos de desenvolvimento ou revisão.
 
@@ -22,7 +22,7 @@ Oppy é um projeto pessoal independente, distribuído sob a licença MIT. O Sena
 |---|---|---|
 | Senac Pará PSG | Cursos gratuitos em Santarém, de todas as áreas | Implementado |
 
-[Portal da fonte](https://www.pa.senac.br/psg/selecao). Antes de executar consultas reais, confirme se o acesso pretendido é permitido, incluindo consultas recorrentes e requisições às páginas de detalhes vinculadas. Consulte as [notas de reconhecimento da fonte](docs/psg-recon.md). Nenhuma outra fonte está implementada atualmente.
+[Portal da fonte](https://www.pa.senac.br/psg/selecao). Antes de executar consultas reais, confirme se o acesso pretendido é permitido, incluindo consultas recorrentes e requisições às páginas de detalhes vinculadas. Consulte as [notas de reconhecimento da fonte](../docs/psg-recon.md). Nenhuma outra fonte está implementada atualmente.
 
 ## O que faz
 
@@ -36,7 +36,7 @@ O conector PSG detecta novos processos seletivos e cursos, períodos de inscriç
 source connector → parser → SQLite → outbox → Telegram
 ```
 
-O conector atual é [oppy/psg.py](oppy/psg.py).
+O conector atual é [oppy/psg.py](../oppy/psg.py).
 
 - A primeira coleta válida enfileira um resumo. Resumos longos são enviados em partes numeradas, sem dividir os blocos de cada curso.
 - Dentro de uma seleção, Oppy associa cursos primeiro pelo identificador único da fonte e, depois, pelo título e local normalizados. O período do curso desempata turmas que, de outra forma, seriam idênticas.
@@ -44,7 +44,7 @@ O conector atual é [oppy/psg.py](oppy/psg.py).
 - Cada alteração e sua notificação pendente são gravadas na mesma transação. A fila de saída (outbox) utiliza entrega pelo menos uma vez e registra o sucesso após a confirmação do Telegram.
 - HTTP 403, 429 ou 503 encerra o ciclo atual. Os ciclos posteriores aumentam o intervalo de espera e respeitam um Retry-After mais longo. Uma coleta bem-sucedida restaura o intervalo configurado.
 
-Consulte as [regras do parser](docs/psg-parser.md) e as [notas sobre SQLite e entrega](docs/offline-core.md).
+Consulte as [regras do parser](../docs/psg-parser.md) e as [notas sobre SQLite e entrega](../docs/offline-core.md).
 
 ## Início rápido
 
@@ -99,7 +99,7 @@ git pull --ff-only origin main
 docker compose up -d --build
 ```
 
-Consulte [CHANGELOG.md](CHANGELOG.md) antes de atualizar. Para restaurar um backup, pare o agendador, coloque uma cópia do arquivo SQLite salvo em um novo caminho dentro do volume de dados montado, configure `BEACON_DB_PATH` com esse caminho e reinicie. Um banco restaurado pode conter notificações pendentes que serão entregues novamente. Nunca sobrescreva um banco em uso.
+Consulte [CHANGELOG.md](../CHANGELOG.md) antes de atualizar. Para restaurar um backup, pare o agendador, coloque uma cópia do arquivo SQLite salvo em um novo caminho dentro do volume de dados montado, configure `BEACON_DB_PATH` com esse caminho e reinicie. Um banco restaurado pode conter notificações pendentes que serão entregues novamente. Nunca sobrescreva um banco em uso.
 
 ### Diagnosticar alterações em uma página
 
@@ -162,7 +162,7 @@ Consulte as [issues abertas](https://github.com/kayo-willian/oppy/issues) para p
 Você pode ajudar com documentação, testes de regressão offline, feedback sobre implantação, exportação de dados, formatação de notificações ou propostas de novas fontes. Não é necessário ter um token do Telegram, um bot em execução ou acesso ao portal PSG para contribuir.
 
 1. [Faça um fork do repositório](https://github.com/kayo-willian/oppy/fork) e crie uma branch específica a partir da `main` do projeto original.
-2. Leia [CONTRIBUTING.md](CONTRIBUTING.md) e [AGENTS.md](AGENTS.md).
+2. Leia [CONTRIBUTING.md](CONTRIBUTING.md) e [AGENTS.md](../AGENTS.md).
 3. Execute os testes offline, faça a alteração e adicione testes de regressão relevantes.
 4. Abra um pull request para `main` e descreva a validação efetivamente realizada e suas limitações.
 
@@ -173,9 +173,9 @@ Você pode ajudar com documentação, testes de regressão offline, feedback sob
 | [Política de segurança](SECURITY.md) | Opções de comunicação privada de vulnerabilidades |
 | [Issues](https://github.com/kayo-willian/oppy/issues) | Relatos de bugs e propostas de funcionalidades; inglês e português brasileiro são bem-vindos |
 | [Pull requests](https://github.com/kayo-willian/oppy/pulls) | Alterações propostas e revisões |
-| [Histórico](CHANGELOG.md) | Alterações significativas integradas |
+| [Histórico](../CHANGELOG.md) | Alterações significativas integradas |
 
-O README possui versões em inglês e português brasileiro. A documentação interna, o código, os commits e os pull requests permanecem em inglês. Issues públicas criadas pelo projeto e modelos de issues usam inglês e português brasileiro; colaboradores podem responder ou reportar problemas em qualquer um dos dois idiomas. Forks independentes permanecem livres para evoluir sob a licença MIT.
+O README possui versões em inglês e português brasileiro. Os guias de contribuição, conduta e segurança também estão disponíveis em português. A documentação técnica interna, o código, os commits e os pull requests permanecem em inglês. Issues públicas criadas pelo projeto e modelos de issues usam inglês e português brasileiro; colaboradores podem responder ou reportar problemas em qualquer um dos dois idiomas. Forks independentes permanecem livres para evoluir sob a licença MIT.
 
 ## Como este projeto foi construído
 
@@ -192,4 +192,4 @@ O ChatGPT elaborou o primeiro briefing, o Claude o revisou e sugeriu melhorias (
 
 ## Licença
 
-[MIT](LICENSE).
+[MIT](../LICENSE).

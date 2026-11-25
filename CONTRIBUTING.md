@@ -1,5 +1,7 @@
 # Contributing to Oppy
 
+[Português (Brasil)](pt-BR/CONTRIBUTING.md)
+
 Contributions are welcome, whether you are learning Python, Linux or Docker or already maintain monitoring software. Oppy is a small, independent self-hosted project. You can fork it, report a problem, improve the documentation or submit a focused pull request. These guidelines apply to upstream contributions, not independent forks under the [MIT license](LICENSE).
 
 ## Scope
@@ -64,7 +66,7 @@ Read [parser notes](docs/psg-parser.md), [source reconnaissance](docs/psg-recon.
 
 Search existing issues and PRs before opening a new one. Use the bug report or feature proposal template. Include the commit, environment, reproduction steps, expected and actual behavior, and sanitized evidence. A source proposal should identify the public listing, access conditions, identity fields, expected changes and a safe offline test plan; do not implement or run recurring collection before review.
 
-Public issues and issue templates are bilingual (English and Brazilian Portuguese). You may write a report or reply in either language; translating it yourself is not required. Code, documentation, commits and pull requests remain in English. For suspected vulnerabilities, follow [SECURITY.md](SECURITY.md) rather than posting sensitive details publicly.
+Public issues and issue templates are bilingual (English and Brazilian Portuguese). You may write a report or reply in either language; translating it yourself is not required. Code, internal technical documentation, commits and pull requests remain in English; community-document translations live in `pt-BR/` and should stay aligned with the English originals. For suspected vulnerabilities, follow [SECURITY.md](SECURITY.md) rather than posting sensitive details publicly.
 
 ## Review checklist
 
